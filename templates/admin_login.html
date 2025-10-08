@@ -5,60 +5,116 @@
     <title>管理员登录</title>
     <style>
         body {
-            font-family: 'Roboto', Arial, sans-serif;
-            background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
+            font-family: 'Courier New', monospace;
+            background: #fff;
             margin: 0;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
+                radial-gradient(circle at 80% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
+                linear-gradient(to right, transparent 49%, rgba(0,0,0,0.05) 50%, transparent 51%);
+            z-index: -1;
+            pointer-events: none;
         }
         .container {
             background: #fff;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            border-radius: 18px;
+            border: 3px solid #000;
+            border-radius: 0;
             padding: 32px 28px 18px 28px;
             margin-top: 80px;
             width: 100%;
             max-width: 400px;
+            position: relative;
+        }
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            background: #000;
+            border-radius: 0;
+            z-index: -1;
+            transform: translate(6px, 6px);
         }
         h2 {
             text-align: center;
-            color: #3b82f6;
+            color: #000;
             font-weight: 700;
             margin-bottom: 24px;
             letter-spacing: 2px;
+            text-shadow: 2px 2px 0px #ccc;
         }
         .btn {
-            background: linear-gradient(135deg, #3b82f6 60%, #60a5fa 100%);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
+            background: #fff;
+            color: #000;
+            border: 3px solid #000;
+            border-radius: 0;
             padding: 0 22px;
             font-size: 16px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 2px 8px 0 rgba(59, 130, 246, 0.10);
-            transition: background 0.2s, transform 0.1s;
+            transition: all 0.1s;
             margin: 8px 0;
             height: 40px;
             width: 100%;
+            position: relative;
+            font-family: 'Courier New', monospace;
         }
-        .btn:active { transform: scale(0.97); }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: -1;
+            transform: translate(4px, 4px);
+            transition: transform 0.1s;
+        }
+        .btn:hover::before {
+            transform: translate(2px, 2px);
+        }
+        .btn:active {
+            transform: translate(2px, 2px);
+        }
+        .btn:active::before {
+            transform: translate(0px, 0px);
+        }
         .form-group { margin-bottom: 18px; }
-        label { color: #64748b; font-size: 15px; display: block; margin-bottom: 6px; }
+        label { color: #000; font-size: 15px; display: block; margin-bottom: 6px; font-weight: bold; }
         input[type=text], input[type=password] {
-            border: 1.5px solid #cbd5e1;
-            border-radius: 8px;
+            border: 2px solid #000;
+            border-radius: 0;
             padding: 7px 12px;
             font-size: 15px;
             width: 100%;
             margin-top: 4px;
-            transition: border 0.2s;
+            transition: all 0.1s;
+            background: #fff;
+            font-family: 'Courier New', monospace;
         }
-        input:focus { border: 1.5px solid #3b82f6; outline: none; }
-        .error { color: #f87171; margin-top: 8px; text-align: center; }
+        input:focus {
+            border: 2px solid #000;
+            outline: none;
+            box-shadow: 2px 2px 0px #ccc;
+        }
+        .error { color: #000; margin-top: 8px; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -77,8 +133,8 @@
             <button class="btn" type="submit">登录</button>
         </form>
     </div>
-    <div style="text-align:center;margin-top:20px;color:#64748b;font-size:12px;">
-        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color:#3b82f6;text-decoration:none;">Turtle_Soup</a> 由 <a href="https://github.com/mumuhaha487" target="_blank" style="color:#3b82f6;text-decoration:none;">mumuhaha</a> 构建
+    <div style="text-align:center;margin-top:20px;color:#000;font-size:12px;font-family:'Courier New',monospace;">
+        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color:#000;text-decoration:underline;">Turtle_Soup</a> 由 <a href="https://github.com/mumuhaha487" target="_blank" style="color:#000;text-decoration:underline;">mumuhaha</a> 构建
     </div>
 </body>
 </html> 

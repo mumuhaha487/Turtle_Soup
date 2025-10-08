@@ -7,64 +7,120 @@
     <!-- <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet"> -->
     <style>
         body {
-            font-family: 'Roboto', Arial, sans-serif;
-            background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
+            font-family: 'Courier New', monospace;
+            background: #fff;
             margin: 0;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
+                radial-gradient(circle at 80% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
+                linear-gradient(to right, transparent 49%, rgba(0,0,0,0.05) 50%, transparent 51%);
+            z-index: -1;
+            pointer-events: none;
         }
         .container {
             background: #fff;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            border-radius: 18px;
+            border: 3px solid #000;
+            border-radius: 0;
             padding: 32px 28px 18px 28px;
             margin-top: 48px;
             width: 100%;
             max-width: 480px;
+            position: relative;
+        }
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            background: #000;
+            border-radius: 0;
+            z-index: -1;
+            transform: translate(6px, 6px);
         }
         h2, h3 {
             text-align: center;
-            color: #3b82f6;
+            color: #000;
             font-weight: 700;
             margin-bottom: 24px;
             letter-spacing: 2px;
+            text-shadow: 2px 2px 0px #ccc;
         }
         .btn {
-            background: linear-gradient(135deg, #3b82f6 60%, #60a5fa 100%);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
+            background: #fff;
+            color: #000;
+            border: 3px solid #000;
+            border-radius: 0;
             padding: 0 22px;
             font-size: 16px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 2px 8px 0 rgba(59, 130, 246, 0.10);
-            transition: background 0.2s, transform 0.1s;
+            transition: all 0.1s;
             margin: 8px 0;
             height: 40px;
+            position: relative;
+            font-family: 'Courier New', monospace;
         }
-        .btn:active { transform: scale(0.97); }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: -1;
+            transform: translate(4px, 4px);
+            transition: transform 0.1s;
+        }
+        .btn:hover::before {
+            transform: translate(2px, 2px);
+        }
+        .btn:active {
+            transform: translate(2px, 2px);
+        }
+        .btn:active::before {
+            transform: translate(0px, 0px);
+        }
         .form-group { margin-bottom: 18px; }
-        label { color: #64748b; font-size: 15px; display: block; margin-bottom: 6px; }
+        label { color: #000; font-size: 15px; display: block; margin-bottom: 6px; font-weight: bold; }
         input[type=text], input[type=password] {
-            border: 1.5px solid #cbd5e1;
-            border-radius: 8px;
+            border: 2px solid #000;
+            border-radius: 0;
             padding: 7px 12px;
             font-size: 15px;
             width: 100%;
             margin-top: 4px;
-            transition: border 0.2s;
+            transition: all 0.1s;
+            font-family: 'Courier New', monospace;
+            background: #fff;
         }
-        input:focus { border: 1.5px solid #3b82f6; outline: none; }
+        input:focus {
+            border: 2px solid #000;
+            outline: none;
+            box-shadow: 2px 2px 0px #ccc;
+        }
         #chat-box {
             width: 100%;
             height: 320px;
-            border-radius: 12px;
-            border: 1.5px solid #e5e7eb;
-            background: #f1f5f9;
+            border-radius: 0;
+            border: 2px solid #000;
+            background: #fff;
             overflow-y: auto;
             padding: 18px 12px 12px 12px;
             margin-bottom: 18px;
@@ -76,22 +132,72 @@
         .bubble {
             max-width: 80%;
             padding: 10px 16px;
-            border-radius: 16px;
+            border-radius: 0;
             font-size: 15px;
             line-height: 1.6;
             word-break: break-word;
-            box-shadow: 0 2px 8px 0 rgba(59, 130, 246, 0.05);
+            border: 2px solid #000;
+            position: relative;
         }
-        .msg-user { align-self: flex-end; background: linear-gradient(135deg, #3b82f6 60%, #60a5fa 100%); color: #fff; border-bottom-right-radius: 4px; }
-        .msg-ai { align-self: flex-start; background: #e0e7ff; color: #334155; border-bottom-left-radius: 4px; }
+        .bubble::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: -1;
+            transform: translate(3px, 3px);
+        }
+        .msg-user {
+            align-self: flex-end;
+            background: #fff;
+            color: #000;
+        }
+        .msg-ai {
+            align-self: flex-start;
+            background: #f0f0f0;
+            color: #000;
+        }
         .msg-nickname { font-weight: bold; margin-right: 6px; }
         .input-row { display: flex; gap: 10px; margin-top: 6px; }
-        #user-input { flex: 1; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px 14px; font-size: 15px; transition: border 0.2s; }
-        #user-input:focus { border: 1.5px solid #3b82f6; outline: none; }
+        #user-input {
+            flex: 1;
+            border: 2px solid #000;
+            border-radius: 0;
+            padding: 10px 14px;
+            font-size: 15px;
+            transition: all 0.1s;
+            font-family: 'Courier New', monospace;
+            background: #fff;
+        }
+        #user-input:focus {
+            border: 2px solid #000;
+            outline: none;
+            box-shadow: 2px 2px 0px #ccc;
+        }
         #send-btn { min-width: 70px; }
-        .invite-code { font-size: 18px; color: #3b82f6; font-weight: bold; text-align: center; margin: 10px 0; letter-spacing: 2px; }
-        .room-info { text-align: center; color: #64748b; margin-bottom: 10px; }
-        .delete-btn { background: #f87171; margin-top: 10px; }
+        .invite-code {
+            font-size: 18px;
+            color: #000;
+            font-weight: bold;
+            text-align: center;
+            margin: 10px 0;
+            letter-spacing: 2px;
+            border: 2px solid #000;
+            padding: 8px;
+            background: #fff;
+        }
+        .room-info { text-align: center; color: #000; margin-bottom: 10px; font-weight: bold; }
+        .delete-btn {
+            background: #fff;
+            margin-top: 10px;
+            border: 3px solid #000;
+        }
+        .delete-btn::before {
+            background: #000;
+        }
         @media (max-width: 600px) {
             .main-layout { flex-direction: column !important; align-items: stretch !important; }
             .container { max-width: 100vw !important; margin-right: 0 !important; margin-top: 10px !important; border-radius: 0 !important; box-shadow: none !important; padding: 12px 4px 10px 4px !important; }
@@ -106,7 +212,7 @@
     </style>
 </head>
 <body>
-    <div class="main-layout" style="display:flex;flex-direction:row;justify-content:center;align-items:flex-start;width:100vw;min-height:100vh;background:linear-gradient(135deg,#e0e7ff 0%,#f8fafc 100%);">
+    <div class="main-layout" style="display:flex;flex-direction:row;justify-content:center;align-items:flex-start;width:100vw;min-height:100vh;background:#fff;">
             <div class="container" style="flex:1;max-width:600px;margin-right:32px;">
             <!-- 首页 -->
             <div id="page-home">
@@ -114,6 +220,7 @@
                 <button class="btn" onclick="showPage('create')">创建房间</button>
                 <button class="btn" onclick="showPage('join')">加入房间</button>
                 <button class="btn" onclick="window.open('/story_plaza', '_blank')">故事广场</button>
+                <button class="btn" onclick="window.open('/story_plaza#edit', '_blank')">修改我上传的海龟汤文件</button>
             </div>
             <!-- 创建房间页 -->
             <div id="page-create" style="display:none;">
@@ -171,7 +278,7 @@
                 <!-- story-ops 和 current-story 由JS动态插入 -->
                 <div class="invite-code">邀请码：<span id="invite-code"></span></div>
                 <!-- 新增：无AI群聊聊天框 -->
-                <div id="chat-box-chat" style="background:#f8fafc;border-radius:10px;padding:10px 8px 8px 8px;margin-bottom:12px;min-height:60px;max-height:180px;overflow-y:auto;"></div>
+                <div id="chat-box-chat" style="background:#fff;border:2px solid #000;border-radius:0;padding:10px 8px 8px 8px;margin-bottom:12px;min-height:60px;max-height:180px;overflow-y:auto;"></div>
                 <div class="input-row" style="margin-bottom:6px;align-items:center;">
                     <input type="text" id="chat-input" placeholder="房间群聊（无AI，支持@用户名高亮）..." style="flex:1;">
                     <button class="btn" id="chat-send-btn" style="margin-left:8px;min-width:70px;">发送</button>
@@ -188,13 +295,14 @@
             </div>
         </div>
         <!-- 右侧在线用户列表 -->
-        <div id="user-list-panel" style="background:#f1f5f9;border-radius:12px;padding:10px 0 10px 0;margin-top:48px;max-width:320px;min-width:180px;box-shadow:0 2px 8px 0 rgba(59,130,246,0.08);">
-            <div style="font-size:15px;color:#2563eb;font-weight:bold;padding-left:18px;margin-bottom:6px;">在线成员</div>
+        <div id="user-list-panel" style="background:#fff;border:3px solid #000;border-radius:0;padding:10px 0 10px 0;margin-top:48px;max-width:320px;min-width:180px;position:relative;">
+            <div style="position:absolute;top:-3px;left:-3px;right:-3px;bottom:-3px;background:#000;z-index:-1;transform:translate(6px,6px);"></div>
+            <div style="font-size:15px;color:#000;font-weight:bold;padding-left:18px;margin-bottom:6px;font-family:'Courier New',monospace;">在线成员</div>
             <div id="user-list"></div>
         </div>
     </div>
-    <div style="text-align:center;margin-top:20px;color:#64748b;font-size:12px;">
-        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color:#3b82f6;text-decoration:none;">Turtle_Soup</a> 由 <a href="https://github.com/mumuhaha487" target="_blank" style="color:#3b82f6;text-decoration:none;">mumuhaha</a> 构建 | <a href="https://beian.miit.gov.cn/" target="_blank" style="color:#3b82f6;text-decoration:none;">赣ICP备2024038464号</a>
+    <div style="text-align:center;margin-top:20px;color:#000;font-size:12px;font-family:'Courier New',monospace;">
+        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color:#000;text-decoration:underline;">Turtle_Soup</a> 由 <a href="https://github.com/mumuhaha487" target="_blank" style="color:#000;text-decoration:underline;">mumuhaha</a> 构建 | <a href="https://beian.miit.gov.cn/" target="_blank" style="color:#000;text-decoration:underline;">赣ICP备2024038464号</a>
     </div>
     <script src="/static/main.js"></script>
 </body>

@@ -6,84 +6,164 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
-            font-family: 'Roboto', Arial, sans-serif;
-            background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
+            font-family: 'Courier New', monospace;
+            background: #fff;
             margin: 0;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
+                radial-gradient(circle at 80% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
+                linear-gradient(to right, transparent 49%, rgba(0,0,0,0.05) 50%, transparent 51%);
+            z-index: -1;
+            pointer-events: none;
         }
         .container {
             background: #fff;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            border-radius: 18px;
+            border: 3px solid #000;
+            border-radius: 0;
             padding: 32px 28px 18px 28px;
             margin-top: 48px;
             width: 100%;
             max-width: 800px;
+            position: relative;
+        }
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            background: #000;
+            border-radius: 0;
+            z-index: -1;
+            transform: translate(6px, 6px);
         }
         h2 {
             text-align: center;
-            color: #3b82f6;
+            color: #000;
             font-weight: 700;
             margin-bottom: 24px;
             letter-spacing: 2px;
+            text-shadow: 2px 2px 0px #ccc;
         }
         .btn {
-            background: linear-gradient(135deg, #3b82f6 60%, #60a5fa 100%);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
+            background: #fff;
+            color: #000;
+            border: 3px solid #000;
+            border-radius: 0;
             padding: 0 22px;
             font-size: 16px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 2px 8px 0 rgba(59, 130, 246, 0.10);
-            transition: background 0.2s, transform 0.1s;
+            transition: all 0.1s;
             margin: 8px 0;
             height: 40px;
+            position: relative;
+            font-family: 'Courier New', monospace;
         }
-        .btn:active { transform: scale(0.97); }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: -1;
+            transform: translate(4px, 4px);
+            transition: transform 0.1s;
+        }
+        .btn:hover::before {
+            transform: translate(2px, 2px);
+        }
+        .btn:active {
+            transform: translate(2px, 2px);
+        }
+        .btn:active::before {
+            transform: translate(0px, 0px);
+        }
         .form-group { margin-bottom: 18px; }
-        label { color: #64748b; font-size: 15px; display: block; margin-bottom: 6px; }
-        input[type=text], input[type=file] {
-            border: 1.5px solid #cbd5e1;
-            border-radius: 8px;
+        label { color: #000; font-size: 15px; display: block; margin-bottom: 6px; font-weight: bold; }
+        input[type=text], input[type=file], input[type=password] {
+            border: 2px solid #000;
+            border-radius: 0;
             padding: 7px 12px;
             font-size: 15px;
             width: 100%;
             margin-top: 4px;
-            transition: border 0.2s;
-            background: #f8fafc;
+            transition: all 0.1s;
+            background: #fff;
+            font-family: 'Courier New', monospace;
         }
-        input[type=text]:focus, input[type=file]:focus { border: 1.5px solid #3b82f6; outline: none; }
+        input[type=text]:focus, input[type=file]:focus, input[type=password]:focus {
+            border: 2px solid #000;
+            outline: none;
+            box-shadow: 2px 2px 0px #ccc;
+        }
         .upload-section {
-            background: #f1f5f9;
-            border-radius: 12px;
+            background: #fff;
+            border: 2px solid #000;
+            border-radius: 0;
             padding: 20px;
             margin-bottom: 24px;
+            position: relative;
         }
-        .error { color: #f87171; margin-top: 8px; }
-        .success { color: #10b981; margin-top: 8px; }
+        .upload-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: -1;
+            transform: translate(4px, 4px);
+        }
+        .error { color: #000; margin-top: 8px; font-weight: bold; }
+        .success { color: #000; margin-top: 8px; font-weight: bold; }
         .story-card {
-            background: #f8fafc;
-            border-radius: 12px;
+            background: #fff;
+            border: 2px solid #000;
+            border-radius: 0;
             padding: 16px;
             margin-bottom: 16px;
-            border: 1px solid #e2e8f0;
             display: flex;
             flex-direction: column;
+            position: relative;
+        }
+        .story-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: -1;
+            transform: translate(3px, 3px);
         }
         .story-title {
             font-weight: bold;
-            color: #1e293b;
+            color: #000;
             margin-bottom: 8px;
             font-size: 18px;
         }
         .story-surface {
-            color: #64748b;
+            color: #000;
             margin-bottom: 8px;
             line-height: 1.5;
         }
@@ -93,7 +173,11 @@
             gap: 10px;
         }
         .start-btn {
-            background: linear-gradient(135deg, #10b981 60%, #059669 100%);
+            background: #fff;
+            border: 3px solid #000;
+        }
+        .start-btn::before {
+            background: #000;
         }
         .input-row {
             display: flex;
@@ -104,6 +188,42 @@
         .input-row input {
             flex: 1;
         }
+        @media (max-width: 768px) {
+            .container {
+                margin-top: 20px;
+                padding: 20px 16px;
+                margin-left: 10px;
+                margin-right: 10px;
+                max-width: calc(100vw - 20px);
+            }
+            .input-row {
+                flex-direction: column;
+                gap: 12px;
+            }
+            .input-row input, .input-row button {
+                width: 100%;
+                box-sizing: border-box;
+            }
+            .btn {
+                font-size: 16px;
+                padding: 0 16px;
+                height: 44px;
+            }
+            input[type=text], input[type=file], input[type=password] {
+                font-size: 16px;
+                padding: 12px;
+            }
+            h2, h3 {
+                font-size: 18px;
+            }
+            .upload-section {
+                padding: 16px;
+                margin-bottom: 16px;
+            }
+            .form-group {
+                margin-bottom: 16px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -111,28 +231,36 @@
         <h2>故事广场</h2>
         <!-- 上传故事区域 -->
         <div class="upload-section">
-            <h3 style="color: #3b82f6; margin-bottom: 16px;">上传故事</h3>
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">上传故事</h3>
             <form id="upload-form">
                 <div class="form-group">
                     <label>故事名称</label>
                     <input type="text" id="story-name" maxlength="32" required placeholder="请输入故事名称">
                 </div>
                 <div class="form-group">
+                    <label>上传密码</label>
+                    <input type="password" id="story-password" required placeholder="设置一个密码，用于后续修改故事">
+                </div>
+                <div class="form-group">
                     <label>选择JSON文件</label>
                     <input type="file" id="story-file" accept=".json" required>
-                    <small style="color: #64748b; font-size: 12px;">文件大小不能超过20MB</small>
+                    <small style="color: #000; font-size: 12px;">文件大小不能超过20MB</small>
                 </div>
-                <button class="btn" type="submit">上传到故事广场</button>
+                <button class="btn" type="submit">发布到故事广场</button>
             </form>
             <div id="upload-result"></div>
         </div>
-        <!-- 在线编辑并提交审核 -->
+        <!-- 在线编辑并发布 -->
         <div class="upload-section">
-            <h3 style="color: #3b82f6; margin-bottom: 16px;">在线编辑并提交审核</h3>
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">在线编辑并发布</h3>
             <form id="online-form">
                 <div class="form-group">
                     <label>故事名称</label>
                     <input type="text" id="online-name" maxlength="32" placeholder="请输入故事名称" required>
+                </div>
+                <div class="form-group">
+                    <label>上传密码</label>
+                    <input type="password" id="online-password" required placeholder="设置一个密码，用于后续修改故事">
                 </div>
                 <div class="form-group">
                     <label>汤面</label>
@@ -150,28 +278,68 @@
                     <label>获胜条件</label>
                     <input type="text" id="online-victory" placeholder="例如：猜出某个关键事实" required>
                 </div>
-                <button class="btn" type="submit">提交审核</button>
+                <button class="btn" type="submit">发布到故事广场</button>
             </form>
             <div id="online-result"></div>
         </div>
+        <!-- 修改我上传的故事 -->
+        <div class="upload-section">
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">修改我上传的海龟汤文件</h3>
+            <div class="form-group">
+                <label>搜索故事</label>
+                <div style="position: relative;">
+                    <input type="text" id="edit-story-search" placeholder="搜索故事名称或编号（如 #00001）" autocomplete="off">
+                    <div id="edit-story-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 2px solid #000; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>验证密码</label>
+                <input type="password" id="edit-story-password" placeholder="输入设置的密码">
+            </div>
+            <button class="btn" id="edit-story-btn" style="width: 100%;">加载故事</button>
+            <div id="edit-story-result"></div>
+            <form id="edit-form" style="display:none;">
+                <div class="form-group">
+                    <label>汤面</label>
+                    <input type="text" id="edit-surface" placeholder="修改汤面">
+                </div>
+                <div class="form-group">
+                    <label>汤底（答案）</label>
+                    <input type="text" id="edit-answer" placeholder="修改汤底">
+                </div>
+                <div class="form-group">
+                    <label>补充说明（仅供AI参考）</label>
+                    <input type="text" id="edit-additional" placeholder="修改补充说明">
+                </div>
+                <div class="form-group">
+                    <label>获胜条件</label>
+                    <input type="text" id="edit-victory" placeholder="修改获胜条件">
+                </div>
+                <button class="btn" type="submit">保存修改</button>
+            </form>
+        </div>
         <!-- 通过编号快速加载故事 -->
         <div class="upload-section">
-            <h3 style="color: #3b82f6; margin-bottom: 16px;">通过编号快速加载故事</h3>
-            <div class="input-row">
-                <input type="text" id="load-story-id" maxlength="10" placeholder="请输入故事编号（如 #00001）">
-                <button class="btn" id="load-story-btn">加载</button>
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">通过编号快速加载故事</h3>
+            <div class="form-group">
+                <label>搜索故事</label>
+                <div style="position: relative;">
+                    <input type="text" id="load-story-search" placeholder="搜索故事名称或编号（如 #00001）" autocomplete="off">
+                    <div id="load-story-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 2px solid #000; max-height: 200px; overflow-y: auto; z-index: 1000;"></div>
+                </div>
             </div>
+            <button class="btn" id="load-story-btn" style="width: 100%;">加载到聊天室</button>
             <div id="load-story-result"></div>
         </div>
         <!-- 故事列表 -->
         <div id="stories-container">
-            <h3 style="color: #3b82f6; margin-bottom: 16px;">已发布的故事</h3>
-            <div id="stories-list" style="max-height:300px;overflow-y:auto;border-radius:12px;background:#f8fafc;padding:8px 4px 8px 4px;box-shadow:0 2px 8px 0 rgba(59,130,246,0.05);border:1.5px solid #e5e7eb;"></div>
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">已发布的故事</h3>
+            <div id="stories-list" style="max-height:300px;overflow-y:auto;border-radius:0;background:#fff;padding:8px 4px 8px 4px;border:2px solid #000;"></div>
         </div>
         <button class="btn" onclick="window.location.href='/'" style="margin-bottom:18px;">返回主界面</button>
     </div>
-    <div style="text-align:center;margin-top:20px;color:#64748b;font-size:12px;">
-        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color:#3b82f6;text-decoration:none;">Turtle_Soup</a> 由 <a href="https://github.com/mumuhaha487" target="_blank" style="color:#3b82f6;text-decoration:none;">mumuhaha</a> 构建
+    <div style="text-align:center;margin-top:20px;color:#000;font-size:12px;font-family:'Courier New',monospace;">
+        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color:#000;text-decoration:underline;">Turtle_Soup</a> 由 <a href="https://github.com/mumuhaha487" target="_blank" style="color:#000;text-decoration:underline;">mumuhaha</a> 构建
     </div>
     <!-- 一键开始弹窗 -->
     <div id="start-modal" style="display:none;position:fixed;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:999;align-items:center;justify-content:center;">
@@ -210,6 +378,7 @@
             e.preventDefault();
             const fileInput = document.getElementById('story-file');
             const nameInput = document.getElementById('story-name');
+            const passwordInput = document.getElementById('story-password');
             const resultDiv = document.getElementById('upload-result');
             if (!fileInput.files[0]) {
                 resultDiv.innerHTML = '<div class="error">请选择文件</div>';
@@ -219,9 +388,14 @@
                 resultDiv.innerHTML = '<div class="error">请填写故事名称</div>';
                 return;
             }
+            if (!passwordInput.value.trim()) {
+                resultDiv.innerHTML = '<div class="error">请填写上传密码</div>';
+                return;
+            }
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
             formData.append('name', nameInput.value.trim());
+            formData.append('password', passwordInput.value.trim());
             try {
                 const response = await fetch('/api/upload_to_plaza', {
                     method: 'POST',
@@ -229,9 +403,8 @@
                 });
                 const data = await response.json();
                 if (data.success) {
-                    resultDiv.innerHTML = '<div class="success">' + data.message + '</div>';
-                    fileInput.value = '';
-                    nameInput.value = '';
+                    resultDiv.innerHTML = '<div class="success">' + data.message + (data.id ? '（编号：' + data.id + '）' : '') + '</div>';
+                    document.getElementById('upload-form').reset();
                     loadStories();
                 } else {
                     resultDiv.innerHTML = '<div class="error">' + (data.error || '上传失败') + '</div>';
@@ -244,12 +417,14 @@
         document.getElementById('online-form').addEventListener('submit', async function(e) {
             e.preventDefault();
             const name = document.getElementById('online-name').value.trim();
+            const password = document.getElementById('online-password').value.trim();
             const surface = document.getElementById('online-surface').value.trim();
             const answer = document.getElementById('online-answer').value.trim();
             const additional = document.getElementById('online-additional').value.trim();
             const victory_condition = document.getElementById('online-victory').value.trim();
             const resultDiv = document.getElementById('online-result');
             if (!name) { resultDiv.innerHTML = '<div class="error">请填写故事名称</div>'; return; }
+            if (!password) { resultDiv.innerHTML = '<div class="error">请填写上传密码</div>'; return; }
             if (!surface) { resultDiv.innerHTML = '<div class="error">请填写汤面</div>'; return; }
             if (!answer) { resultDiv.innerHTML = '<div class="error">请填写汤底</div>'; return; }
             if (!victory_condition) { resultDiv.innerHTML = '<div class="error">请填写获胜条件</div>'; return; }
@@ -257,7 +432,7 @@
                 const resp = await fetch('/api/submit_story_online', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, surface, answer, additional, victory_condition })
+                    body: JSON.stringify({ name, password, surface, answer, additional, victory_condition })
                 });
                 const data = await resp.json();
                 if (data.success) {
@@ -268,6 +443,184 @@
                     resultDiv.innerHTML = '<div class="error">' + (data.error || '提交失败') + '</div>';
                 }
             } catch (err) {
+                resultDiv.innerHTML = '<div class="error">网络错误</div>';
+            }
+        });
+
+        // 搜索故事功能
+        let searchTimeout = null;
+        let selectedStoryId = '';
+        let selectedStoryFilename = '';
+
+        function createSearchDropdown(inputId, dropdownId, callback) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+
+            input.addEventListener('input', function() {
+                const query = this.value.trim();
+                clearTimeout(searchTimeout);
+
+                if (query.length < 1) {
+                    dropdown.style.display = 'none';
+                    selectedStoryId = '';
+                    selectedStoryFilename = '';
+                    return;
+                }
+
+                searchTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/api/search_stories?q=${encodeURIComponent(query)}`);
+                        const data = await response.json();
+
+                        dropdown.innerHTML = '';
+                        if (data.stories && data.stories.length > 0) {
+                            data.stories.forEach(story => {
+                                const item = document.createElement('div');
+                                item.style.cssText = 'padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #ccc; font-family: "Courier New", monospace;';
+                                item.innerHTML = `<div style="font-weight: bold;">${story.name} <span style="color: #666;">${story.id}</span></div><div style="font-size: 12px; color: #666; margin-top: 2px;">${story.surface.substring(0, 50)}${story.surface.length > 50 ? '...' : ''}</div>`;
+
+                                item.addEventListener('mouseenter', function() {
+                                    this.style.backgroundColor = '#f0f0f0';
+                                });
+
+                                item.addEventListener('mouseleave', function() {
+                                    this.style.backgroundColor = '#fff';
+                                });
+
+                                item.addEventListener('click', function() {
+                                    input.value = `${story.name} ${story.id}`;
+                                    selectedStoryId = story.id;
+                                    selectedStoryFilename = story.filename;
+                                    dropdown.style.display = 'none';
+                                    if (callback) callback(story);
+                                });
+
+                                dropdown.appendChild(item);
+                            });
+                            dropdown.style.display = 'block';
+                        } else {
+                            dropdown.innerHTML = '<div style="padding: 8px 12px; color: #666; font-family: \'Courier New\', monospace;">未找到匹配的故事</div>';
+                            dropdown.style.display = 'block';
+                        }
+                    } catch (error) {
+                        console.error('搜索失败:', error);
+                        dropdown.style.display = 'none';
+                    }
+                }, 300);
+            });
+
+            // 点击其他地方关闭下拉菜单
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+
+        // 初始化搜索下拉菜单
+        createSearchDropdown('edit-story-search', 'edit-story-dropdown');
+        createSearchDropdown('load-story-search', 'load-story-dropdown');
+
+        // 修改我上传的故事 - 加载故事
+        document.getElementById('edit-story-btn').onclick = async function() {
+            const searchValue = document.getElementById('edit-story-search').value.trim();
+            const password = document.getElementById('edit-story-password').value.trim();
+            const resultDiv = document.getElementById('edit-story-result');
+
+            let storyId = selectedStoryId;
+
+            // 如果没有通过下拉菜单选择，尝试从输入框提取ID
+            if (!storyId && searchValue) {
+                const idMatch = searchValue.match(/#\d+/);
+                if (idMatch) {
+                    storyId = idMatch[0];
+                }
+            }
+
+            if (!storyId) {
+                resultDiv.innerHTML = '<div class="error">请选择或输入故事编号</div>';
+                return;
+            }
+
+            if (!password) {
+                resultDiv.innerHTML = '<div class="error">请输入密码</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/get_story_for_edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ story_id: storyId, password: password })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const story = data.story;
+                    document.getElementById('edit-surface').value = story.surface || '';
+                    document.getElementById('edit-answer').value = story.answer || '';
+                    document.getElementById('edit-additional').value = story.additional || '';
+                    document.getElementById('edit-victory').value = story.victory_condition || '';
+
+                    document.getElementById('edit-form').style.display = 'block';
+                    resultDiv.innerHTML = '<div class="success">故事加载成功，可以开始修改</div>';
+                } else {
+                    resultDiv.innerHTML = '<div class="error">' + (data.error || '加载失败') + '</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<div class="error">网络错误</div>';
+            }
+        };
+
+        // 修改故事表单提交
+        document.getElementById('edit-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const searchValue = document.getElementById('edit-story-search').value.trim();
+            const password = document.getElementById('edit-story-password').value.trim();
+            const surface = document.getElementById('edit-surface').value.trim();
+            const answer = document.getElementById('edit-answer').value.trim();
+            const additional = document.getElementById('edit-additional').value.trim();
+            const victory_condition = document.getElementById('edit-victory').value.trim();
+            const resultDiv = document.getElementById('edit-story-result');
+
+            let storyId = selectedStoryId;
+
+            // 如果没有通过下拉菜单选择，尝试从输入框提取ID
+            if (!storyId && searchValue) {
+                const idMatch = searchValue.match(/#\d+/);
+                if (idMatch) {
+                    storyId = idMatch[0];
+                }
+            }
+
+            if (!storyId) {
+                resultDiv.innerHTML = '<div class="error">请选择或输入故事编号</div>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/edit_story', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        story_id: storyId,
+                        password: password,
+                        surface: surface,
+                        answer: answer,
+                        additional: additional,
+                        victory_condition: victory_condition
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    resultDiv.innerHTML = '<div class="success">' + data.message + '</div>';
+                    loadStories(); // 刷新故事列表
+                } else {
+                    resultDiv.innerHTML = '<div class="error">' + (data.error || '修改失败') + '</div>';
+                }
+            } catch (error) {
                 resultDiv.innerHTML = '<div class="error">网络错误</div>';
             }
         });
@@ -297,26 +650,40 @@
                 console.error('加载故事失败:', error);
             }
         }
-        // 通过编号加载故事
+        // 通过编号加载故事到聊天室
         document.getElementById('load-story-btn').onclick = async function() {
-            const id = document.getElementById('load-story-id').value.trim();
+            const searchValue = document.getElementById('load-story-search').value.trim();
             const resultDiv = document.getElementById('load-story-result');
-            if (!id) {
-                resultDiv.innerHTML = '<div class="error">请输入故事编号</div>';
+
+            let storyId = selectedStoryId;
+            let filename = selectedStoryFilename;
+
+            // 如果没有通过下拉菜单选择，尝试从输入框提取ID
+            if (!storyId && searchValue) {
+                const idMatch = searchValue.match(/#\d+/);
+                if (idMatch) {
+                    storyId = idMatch[0];
+                    // 根据ID查找文件名
+                    try {
+                        const response = await fetch('/api/get_plaza_stories');
+                        const data = await response.json();
+                        const story = data.stories.find(s => s.id === storyId);
+                        if (story) {
+                            filename = story.filename;
+                        }
+                    } catch (error) {
+                        resultDiv.innerHTML = '<div class="error">查找故事失败</div>';
+                        return;
+                    }
+                }
+            }
+
+            if (!storyId || !filename) {
+                resultDiv.innerHTML = '<div class="error">请选择或输入故事编号</div>';
                 return;
             }
-            try {
-                const response = await fetch('/api/get_plaza_stories');
-                const data = await response.json();
-                const story = data.stories.find(s => s.id === id);
-                if (!story) {
-                    resultDiv.innerHTML = '<div class="error">未找到该编号的故事</div>';
-                    return;
-                }
-                openStartModal(story.filename);
-            } catch (error) {
-                resultDiv.innerHTML = '<div class="error">网络错误</div>';
-            }
+
+            openStartModal(filename);
         };
         // 一键开始弹窗逻辑
         function openStartModal(filename) {
@@ -401,6 +768,17 @@
         // 页面加载时获取故事列表与初始化选项
         loadStories();
         initPlazaOptions();
+
+        // 如果URL包含#edit，滚动到修改故事区域
+        if (window.location.hash === '#edit') {
+            setTimeout(() => {
+                const editInput = document.getElementById('edit-story-search');
+                if (editInput) {
+                    editInput.scrollIntoView({ behavior: 'smooth' });
+                    editInput.focus();
+                }
+            }, 500);
+        }
     </script>
 </body>
 </html> 

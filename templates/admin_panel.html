@@ -5,76 +5,134 @@
     <title>管理员后台</title>
     <style>
         body {
-            font-family: 'Roboto', Arial, sans-serif;
-            background: linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%);
+            font-family: 'Courier New', monospace;
+            background: #fff;
             margin: 0;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
+            position: relative;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                radial-gradient(circle at 20% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
+                radial-gradient(circle at 80% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
+                linear-gradient(to right, transparent 49%, rgba(0,0,0,0.05) 50%, transparent 51%);
+            z-index: -1;
+            pointer-events: none;
         }
         .container {
             background: #fff;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-            border-radius: 18px;
+            border: 3px solid #000;
+            border-radius: 0;
             padding: 32px 28px 18px 28px;
             margin-top: 48px;
             width: 100%;
             max-width: 900px;
+            position: relative;
+        }
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            background: #000;
+            border-radius: 0;
+            z-index: -1;
+            transform: translate(6px, 6px);
         }
         h2 {
             text-align: center;
-            color: #3b82f6;
+            color: #000;
             font-weight: 700;
             margin-bottom: 24px;
             letter-spacing: 2px;
+            text-shadow: 2px 2px 0px #ccc;
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 18px;
-            background: #f8fafc;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px 0 rgba(59, 130, 246, 0.05);
+            background: #fff;
+            border: 2px solid #000;
+            border-radius: 0;
         }
         th, td {
             padding: 12px 10px;
             text-align: center;
+            border: 1px solid #000;
         }
         th {
-            background: linear-gradient(135deg, #3b82f6 60%, #60a5fa 100%);
-            color: #fff;
+            background: #fff;
+            color: #000;
             font-weight: 700;
             font-size: 16px;
         }
-        tr:nth-child(even) { background: #e0e7ff; }
-        tr:nth-child(odd) { background: #f8fafc; }
+        tr:nth-child(even) { background: #f0f0f0; }
+        tr:nth-child(odd) { background: #fff; }
         td {
-            color: #334155;
+            color: #000;
             font-size: 15px;
         }
         .btn {
-            background: linear-gradient(135deg, #3b82f6 60%, #60a5fa 100%);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
+            background: #fff;
+            color: #000;
+            border: 2px solid #000;
+            border-radius: 0;
             padding: 0 18px;
             font-size: 15px;
             font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 2px 8px 0 rgba(59, 130, 246, 0.10);
-            transition: background 0.2s, transform 0.1s;
+            transition: all 0.1s;
             margin: 0 2px;
             height: 36px;
+            position: relative;
+            font-family: 'Courier New', monospace;
         }
-        .btn:active { transform: scale(0.97); }
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: -1;
+            transform: translate(2px, 2px);
+            transition: transform 0.1s;
+        }
+        .btn:hover::before {
+            transform: translate(1px, 1px);
+        }
+        .btn:active {
+            transform: translate(1px, 1px);
+        }
+        .btn:active::before {
+            transform: translate(0px, 0px);
+        }
         .btn-reject {
-            background: linear-gradient(135deg, #f87171 60%, #ef4444 100%);
+            background: #fff;
+            border: 2px solid #000;
+        }
+        .btn-reject::before {
+            background: #000;
         }
         .btn-approve {
-            background: linear-gradient(135deg, #10b981 60%, #059669 100%);
+            background: #fff;
+            border: 2px solid #000;
+        }
+        .btn-approve::before {
+            background: #000;
         }
         form { display: inline; }
         .section {
@@ -94,7 +152,7 @@
         
         <!-- 房间管理 -->
         <div class="section">
-            <h3 style="color: #3b82f6; margin-bottom: 16px;">房间管理</h3>
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">房间管理</h3>
             <table>
                 <tr>
                     <th>房间邀请码</th>
@@ -115,9 +173,9 @@
             </table>
         </div>
 
-        <!-- 故事审核 -->
-        <div class="section">
-            <h3 style="color: #3b82f6; margin-bottom: 16px;">故事审核</h3>
+        <!-- 故事审核（已移除） -->
+        <div class="section" style="display: none;">
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">故事审核</h3>
             <table id="pending-stories-table">
                 <tr>
                     <th>故事名称</th>
@@ -129,7 +187,7 @@
 
         <!-- 已发布的故事 -->
         <div class="section">
-            <h3 style="color: #3b82f6; margin-bottom: 16px;">已发布的故事</h3>
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">已发布的故事</h3>
             <div class="input-row" style="display:flex;gap:10px;margin-bottom:10px;align-items:center;">
                 <input type="text" id="released-search" placeholder="搜索名称/编号/文件名" style="flex:1;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px 10px;background:#f8fafc;font-size:14px;">
                 <button class="btn" id="released-refresh">刷新</button>
@@ -148,7 +206,7 @@
 
         <!-- 选项管理 -->
         <div class="section">
-            <h3 style="color: #3b82f6; margin-bottom: 16px;">创建房间下拉选项管理</h3>
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">创建房间下拉选项管理</h3>
             <div style="display:flex;gap:16px;flex-wrap:wrap;">
                 <div style="flex:1;min-width:260px;">
                     <div style="font-weight:bold;color:#334155;margin-bottom:6px;">模型列表</div>
@@ -171,7 +229,7 @@
 
         <!-- 公告管理 -->
         <div class="section">
-            <h3 style="color: #3b82f6; margin-bottom: 16px;">首页公告</h3>
+            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">首页公告</h3>
             <textarea id="ann-content" style="width:100%;height:160px;border:1.5px solid #cbd5e1;border-radius:8px;padding:10px;" placeholder="在此输入公告内容，支持换行"></textarea>
             <div style="margin-top:10px;">
                 <button class="btn" onclick="saveAnnouncements()">保存公告</button>
@@ -315,7 +373,10 @@
                         <td>${story.name || '无名称'}</td>
                         <td>${story.id || ''}</td>
                         <td>${story.filename || ''}</td>
-                        <td><button class="btn btn-reject" onclick="deleteReleased('${story.filename}')">删除</button></td>
+                        <td>
+                            <button class="btn" onclick="viewStory('${story.filename}')">查看</button>
+                            <button class="btn btn-reject" onclick="deleteReleased('${story.filename}')">删除</button>
+                        </td>
                     `;
                 });
             } catch (error) {
