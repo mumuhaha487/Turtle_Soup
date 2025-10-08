@@ -100,6 +100,7 @@ def create_room():
             'api_key': api_key,
             'model': model,
             'messages': [],
+            'ai_context': [],  # 新增：存储AI对话上下文
             'members': {nickname: {'nickname': nickname}}
         }
     session['nickname'] = nickname
@@ -218,6 +219,7 @@ def send_message():
             'current_story': room.get('current_story'),
         }
         messages_copy = list(room['messages'])
+        ai_context_copy = list(room.get('ai_context', []))
     # 2. 生成唯一消息ID
     msg_id = str(uuid.uuid4())
     # 3. 在线程池中异步执行AI调用
@@ -233,14 +235,16 @@ def send_message():
                 preset = f"你现在是海龟汤推理游戏的主持人。当前题目如下：\n\n汤面：{story.get('surface', '')}\n\n游戏规则：出题者先给出不完整的'汤面'（题目），让猜题者提出各种可能性的问题，而出题者只能回答'是'、'不是'或'不重要'。猜题者在有限的线索中推理出事件的始末，拼出故事的全貌，凑出一个'汤底'（答案）。你只需根据规则回答问题，不要直接给出答案。同时会给出胜利条件，由你来决定是否过关。\n\n补充说明（仅供AI参考）：{additional}\n\n胜利条件：{victory_condition}\n" + CUSTOM_STORY_RESTORE_GUIDE
         else:
             preset = (PRESET + '\n' + CUSTOM_STORY_RESTORE_GUIDE) if PRESET and PRESET.strip() else "当前房间还没有上传题目，请房主上传海龟汤题目（json文件）。"
+        # 构建多轮对话消息
         messages = [
             {'role': 'system', 'content': preset}
         ]
-        for msg in messages_copy:
-            if msg['role'] == 'user':
-                messages.append({'role': 'user', 'content': f"{msg['nickname']}: {msg['content']}"})
-            elif msg['role'] == 'assistant':
-                messages.append({'role': 'assistant', 'content': msg['content']})
+
+        # 使用AI上下文历史（用于保持多轮对话连续性）
+        messages.extend(ai_context_copy)
+
+        # 添加当前用户消息
+        messages.append({'role': 'user', 'content': f"{nickname}: {content}"})
         try:
             client = OpenAI(base_url=room_copy['base_url'], api_key=room_copy['api_key'])
             completion = client.chat.completions.create(
@@ -256,6 +260,19 @@ def send_message():
             if not room:
                 return {'error': '房间不存在'}
             room['messages'].append({'role': 'assistant', 'content': reply, 'nickname': 'AI'})
+
+            # 更新AI上下文历史，保持多轮对话
+            if 'ai_context' not in room:
+                room['ai_context'] = []
+
+            # 添加用户消息和AI回复到上下文（限制历史长度）
+            room['ai_context'].append({'role': 'user', 'content': f"{nickname}: {content}"})
+            room['ai_context'].append({'role': 'assistant', 'content': reply})
+
+            # 限制上下文长度，保留最近的20轮对话（40条消息）
+            if len(room['ai_context']) > 40:
+                room['ai_context'] = room['ai_context'][-40:]
+
             if '故事还原正确' in reply or '故事还原大致正确' in reply:
                 popup = '恭喜过关'
                 room['passed'] = True
@@ -436,8 +453,11 @@ def story_plaza():
 def upload_to_plaza():
     """上传故事到广场"""
     name = request.form.get('name')
+    password = request.form.get('password')  # 新增密码字段
     if not name:
         return jsonify({'error': '请填写故事名称'}), 400
+    if not password:
+        return jsonify({'error': '请填写上传密码'}), 400
     if 'file' not in request.files:
         return jsonify({'error': '没有选择文件'}), 400
     file = request.files['file']
@@ -460,27 +480,29 @@ def upload_to_plaza():
         story_id = f"#{STORY_COUNTER:05d}"
         STORY_COUNTER += 1
         save_story_counter(STORY_COUNTER)
-        # 包装故事数据
+        # 包装故事数据，包含密码
         plaza_story = {
             'name': name,
             'id': story_id,
             'surface': story_data.get('surface', ''),
-            'data': story_data
+            'data': story_data,
+            'password': password  # 保存密码用于后续修改
         }
         # 生成唯一文件名
         import uuid
         filename = f"{uuid.uuid4()}.json"
-        filepath = os.path.join(STORY_UPLOAD_DIR, filename)
+        # 直接保存到发布目录，跳过审核
+        filepath = os.path.join(STORY_RELEASE_DIR, filename)
         # 保存文件
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(plaza_story, f, ensure_ascii=False, indent=2)
-        return jsonify({'success': True, 'message': '故事已上传，等待管理员审核'})
+        return jsonify({'success': True, 'message': '故事已发布到广场', 'id': story_id})
     except Exception as e:
         return jsonify({'error': f'文件解析失败: {str(e)}'}), 400
 
 @app.route('/api/submit_story_online', methods=['POST'])
 def submit_story_online():
-    """在线编辑并提交故事到广场（待审核）"""
+    """在线编辑并提交故事到广场"""
     try:
         if request.is_json:
             data = request.get_json(silent=True) or {}
@@ -489,12 +511,14 @@ def submit_story_online():
             answer = data.get('answer', '').strip()
             additional = data.get('additional', '').strip()
             victory_condition = data.get('victory_condition', '').strip()
+            password = data.get('password', '').strip()  # 新增密码字段
         else:
             name = (request.form.get('name') or '').strip()
             surface = (request.form.get('surface') or '').strip()
             answer = (request.form.get('answer') or '').strip()
             additional = (request.form.get('additional') or '').strip()
             victory_condition = (request.form.get('victory_condition') or '').strip()
+            password = (request.form.get('password') or '').strip()  # 新增密码字段
 
         if not name:
             return jsonify({'error': '请填写故事名称'}), 400
@@ -504,6 +528,8 @@ def submit_story_online():
             return jsonify({'error': '请填写汤底'}), 400
         if not victory_condition:
             return jsonify({'error': '请填写获胜条件'}), 400
+        if not password:
+            return jsonify({'error': '请填写上传密码'}), 400
 
         # 生成唯一编号
         global STORY_COUNTER
@@ -523,18 +549,195 @@ def submit_story_online():
             'name': name,
             'id': story_id,
             'surface': surface,
-            'data': story_data
+            'data': story_data,
+            'password': password  # 保存密码用于后续修改
         }
 
-        # 保存到待发布目录
+        # 直接保存到发布目录，跳过审核
         filename = f"{uuid.uuid4()}.json"
-        filepath = os.path.join(STORY_UPLOAD_DIR, filename)
+        filepath = os.path.join(STORY_RELEASE_DIR, filename)
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(plaza_story, f, ensure_ascii=False, indent=2)
 
-        return jsonify({'success': True, 'message': '故事已提交，等待管理员审核', 'id': story_id})
+        return jsonify({'success': True, 'message': '故事已发布到广场', 'id': story_id})
     except Exception as e:
         return jsonify({'error': f'提交失败: {str(e)}'}), 500
+
+@app.route('/api/edit_story', methods=['POST'])
+def edit_story():
+    """修改已上传的故事"""
+    try:
+        if request.is_json:
+            data = request.get_json(silent=True) or {}
+        else:
+            data = request.form.to_dict()
+
+        story_id = data.get('story_id', '').strip()
+        password = data.get('password', '').strip()
+        new_surface = data.get('surface', '').strip()
+        new_answer = data.get('answer', '').strip()
+        new_additional = data.get('additional', '').strip()
+        new_victory_condition = data.get('victory_condition', '').strip()
+
+        if not story_id:
+            return jsonify({'error': '请输入故事编号'}), 400
+        if not password:
+            return jsonify({'error': '请输入密码'}), 400
+
+        # 在发布目录中查找匹配的故事
+        story_file = None
+        story_data = None
+        for filename in os.listdir(STORY_RELEASE_DIR):
+            if filename.endswith('.json'):
+                try:
+                    with open(os.path.join(STORY_RELEASE_DIR, filename), 'r', encoding='utf-8') as f:
+                        temp_story = json.load(f)
+                    if temp_story.get('id') == story_id:
+                        story_file = filename
+                        story_data = temp_story
+                        break
+                except Exception:
+                    continue
+
+        if not story_file:
+            return jsonify({'error': '未找到对应的故事'}), 404
+
+        # 验证密码
+        if story_data.get('password') != password:
+            return jsonify({'error': '密码错误'}), 403
+
+        # 更新故事数据
+        if new_surface:
+            story_data['surface'] = new_surface
+            story_data['data']['surface'] = new_surface
+        if new_answer:
+            story_data['data']['answer'] = new_answer
+        if new_additional:
+            story_data['data']['additional'] = new_additional
+        if new_victory_condition:
+            story_data['data']['victory_condition'] = new_victory_condition
+
+        # 保存更新后的文件
+        filepath = os.path.join(STORY_RELEASE_DIR, story_file)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(story_data, f, ensure_ascii=False, indent=2)
+
+        return jsonify({'success': True, 'message': '故事修改成功'})
+    except Exception as e:
+        return jsonify({'error': f'修改失败: {str(e)}'}), 500
+
+@app.route('/api/get_story_for_edit', methods=['POST'])
+def get_story_for_edit():
+    """获取故事内容用于编辑"""
+    try:
+        data = request.get_json(silent=True) or {}
+        story_id = data.get('story_id', '').strip()
+        password = data.get('password', '').strip()
+
+        if not story_id:
+            return jsonify({'error': '请输入故事编号'}), 400
+        if not password:
+            return jsonify({'error': '请输入密码'}), 400
+
+        # 在发布目录中查找匹配的故事
+        for filename in os.listdir(STORY_RELEASE_DIR):
+            if filename.endswith('.json'):
+                try:
+                    with open(os.path.join(STORY_RELEASE_DIR, filename), 'r', encoding='utf-8') as f:
+                        story_data = json.load(f)
+                    if story_data.get('id') == story_id:
+                        # 验证密码
+                        if story_data.get('password') != password:
+                            return jsonify({'error': '密码错误'}), 403
+
+                        # 返回故事内容（不包含密码）
+                        return jsonify({
+                            'success': True,
+                            'story': {
+                                'id': story_data.get('id'),
+                                'name': story_data.get('name'),
+                                'surface': story_data['data'].get('surface', ''),
+                                'answer': story_data['data'].get('answer', ''),
+                                'additional': story_data['data'].get('additional', ''),
+                                'victory_condition': story_data['data'].get('victory_condition', '')
+                            }
+                        })
+                except Exception:
+                    continue
+
+        return jsonify({'error': '未找到对应的故事'}), 404
+    except Exception as e:
+        return jsonify({'error': f'获取失败: {str(e)}'}), 500
+
+@app.route('/api/admin_view_story', methods=['POST'])
+def admin_view_story():
+    """管理员查看故事详情"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': '未登录'}), 403
+
+    filename = request.form.get('filename')
+    if not filename:
+        return jsonify({'error': '参数不完整'}), 400
+
+    filepath = os.path.join(STORY_RELEASE_DIR, filename)
+    if not os.path.exists(filepath):
+        return jsonify({'error': '文件不存在'}), 404
+
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            story_data = json.load(f)
+
+        return jsonify({
+            'success': True,
+            'story': {
+                'id': story_data.get('id'),
+                'name': story_data.get('name'),
+                'surface': story_data['data'].get('surface', ''),
+                'answer': story_data['data'].get('answer', ''),
+                'additional': story_data['data'].get('additional', ''),
+                'victory_condition': story_data['data'].get('victory_condition', '')
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': f'读取失败: {str(e)}'}), 500
+
+@app.route('/api/search_stories', methods=['GET'])
+def search_stories():
+    """搜索故事（用于下拉菜单）"""
+    query = request.args.get('q', '').strip().lower()
+    stories = []
+
+    # 获取已发布的故事
+    for filename in os.listdir(STORY_RELEASE_DIR):
+        if filename.endswith('.json'):
+            try:
+                with open(os.path.join(STORY_RELEASE_DIR, filename), 'r', encoding='utf-8') as f:
+                    story_data = json.load(f)
+
+                story_info = {
+                    'name': story_data.get('name', ''),
+                    'id': story_data.get('id', ''),
+                    'surface': story_data.get('surface', ''),
+                    'filename': filename
+                }
+
+                # 如果有查询条件，进行筛选
+                if query:
+                    name_match = query in story_info['name'].lower()
+                    id_match = query in story_info['id'].lower()
+                    surface_match = query in story_info['surface'].lower()
+
+                    if name_match or id_match or surface_match:
+                        stories.append(story_info)
+                else:
+                    stories.append(story_info)
+
+            except Exception as e:
+                print(f"Error reading {filename}: {e}")
+
+    # 按编号排序
+    stories.sort(key=lambda x: x.get('id', ''))
+    return jsonify({'stories': stories})
 
 @app.route('/api/get_plaza_stories', methods=['GET'])
 def get_plaza_stories():

@@ -1,20 +1,20 @@
 {
   "preset": "",
   "admin": {
-    "username": "",
-    "password": ""
+    "username": "mumuemhaha",
+    "password": "adsw"
   },
-  "story_counter": 7,
+  "story_counter": 8,
   "options": {
     "models": [
-      ""
+      "gpt-5-chat"
     ],
     "base_urls": [
-      ""
+      "http://api.0ha.top/v1"
     ],
     "api_keys": [
-      ""
+      "sk-gmQZM42fY9vraXVeC9047984D8B240C38082EeEdD284A08d"
     ]
   },
-  "announcements": ""
+  "announcements": "有bug以及其他反馈可以在B站视频下或者论坛（http://discuss.vmss.cn/）提出意见。"
 }
