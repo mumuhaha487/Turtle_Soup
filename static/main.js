@@ -560,20 +560,27 @@ if (leaveRoomBtn) {
         if (!left) {
             left = document.createElement('div');
             left.id = 'announcement-panel';
-            left.style.background = '#f1f5f9';
-            left.style.borderRadius = '12px';
+            left.style.background = '#fff';
+            left.style.border = '3px solid #000';
+            left.style.borderRadius = '0';
             left.style.padding = '10px 12px 10px 12px';
             left.style.marginTop = '48px';
             left.style.maxWidth = '320px';
             left.style.minWidth = '220px';
-            left.style.boxShadow = '0 2px 8px 0 rgba(59,130,246,0.08)';
             left.style.marginRight = '16px';
+            left.style.position = 'relative';
+            left.style.fontFamily = '"Courier New", monospace';
+
+            // 添加阴影效果
+            left.innerHTML = '<div style="position:absolute;top:-3px;left:-3px;right:-3px;bottom:-3px;background:#000;z-index:-1;transform:translate(6px,6px);"></div>';
+
             // 将公告栏插入到主布局最左侧
             const layout = document.querySelector('.main-layout');
             if (layout) layout.insertBefore(left, layout.firstChild);
         }
-        left.innerHTML = '<div style="font-size:15px;color:#2563eb;font-weight:bold;margin-bottom:6px;">公告</div>' +
-            '<div style="white-space:pre-wrap;color:#334155;line-height:1.6;">' + (content ? escapeHtml(content) : '暂无公告') + '</div>';
+        left.innerHTML = '<div style="position:absolute;top:-3px;left:-3px;right:-3px;bottom:-3px;background:#000;z-index:-1;transform:translate(6px,6px);"></div>' +
+            '<div style="font-size:15px;color:#000;font-weight:bold;margin-bottom:6px;font-family:\'Courier New\',monospace;">公告</div>' +
+            '<div style="white-space:pre-wrap;color:#000;line-height:1.6;font-family:\'Courier New\',monospace;">' + (content ? escapeHtml(content) : '暂无公告') + '</div>';
     } catch (e) {}
 })();
 
