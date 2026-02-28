@@ -2,139 +2,65 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>管理员登录</title>
+    <title>管理员登录 - 海龟汤</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
     <style>
         body {
-            font-family: 'Courier New', monospace;
-            background: #fff;
-            margin: 0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow-x: hidden;
-            position: relative;
+            justify-content: center;
         }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image:
-                radial-gradient(circle at 20% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
-                radial-gradient(circle at 80% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
-                linear-gradient(to right, transparent 49%, rgba(0,0,0,0.05) 50%, transparent 51%);
-            z-index: -1;
-            pointer-events: none;
-        }
-        .container {
-            background: #fff;
-            border: 3px solid #000;
-            border-radius: 0;
-            padding: 32px 28px 18px 28px;
-            margin-top: 80px;
-            width: 100%;
+        .login-card {
             max-width: 400px;
-            position: relative;
-        }
-        .container::before {
-            content: '';
-            position: absolute;
-            top: -3px;
-            left: -3px;
-            right: -3px;
-            bottom: -3px;
-            background: #000;
-            border-radius: 0;
-            z-index: -1;
-            transform: translate(6px, 6px);
-        }
-        h2 {
-            text-align: center;
-            color: #000;
-            font-weight: 700;
-            margin-bottom: 24px;
-            letter-spacing: 2px;
-            text-shadow: 2px 2px 0px #ccc;
-        }
-        .btn {
-            background: #fff;
-            color: #000;
-            border: 3px solid #000;
-            border-radius: 0;
-            padding: 0 22px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.1s;
-            margin: 8px 0;
-            height: 40px;
             width: 100%;
-            position: relative;
-            font-family: 'Courier New', monospace;
+            margin: 0 auto;
         }
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #000;
-            z-index: -1;
-            transform: translate(4px, 4px);
-            transition: transform 0.1s;
-        }
-        .btn:hover::before {
-            transform: translate(2px, 2px);
-        }
-        .btn:active {
-            transform: translate(2px, 2px);
-        }
-        .btn:active::before {
-            transform: translate(0px, 0px);
-        }
-        .form-group { margin-bottom: 18px; }
-        label { color: #000; font-size: 15px; display: block; margin-bottom: 6px; font-weight: bold; }
-        input[type=text], input[type=password] {
-            border: 2px solid #000;
-            border-radius: 0;
-            padding: 7px 12px;
-            font-size: 15px;
-            width: 100%;
-            margin-top: 4px;
-            transition: all 0.1s;
-            background: #fff;
-            font-family: 'Courier New', monospace;
-        }
-        input:focus {
-            border: 2px solid #000;
-            outline: none;
-            box-shadow: 2px 2px 0px #ccc;
-        }
-        .error { color: #000; margin-top: 8px; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>管理员后台登录</h2>
-        {% if error %}<div class="error">{{ error }}</div>{% endif %}
-        <form method="post">
-            <div class="form-group">
-                <label>账号</label>
-                <input type="text" name="username" required>
+    <div class="container login-card">
+        <div class="card">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <span class="iconify" data-icon="lucide:shield-check" style="font-size: 3rem; color: var(--color-primary);"></span>
+                <h2>管理员登录</h2>
             </div>
-            <div class="form-group">
-                <label>密码</label>
-                <input type="password" name="password" required>
+            
+            {% if error %}
+            <div style="background: #fee2e2; color: #b91c1c; padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span class="iconify" data-icon="lucide:alert-circle"></span>
+                {{ error }}
             </div>
-            <button class="btn" type="submit">登录</button>
-        </form>
-    </div>
-    <div style="text-align:center;margin-top:20px;color:#000;font-size:12px;font-family:'Courier New',monospace;">
-        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color:#000;text-decoration:underline;">Turtle_Soup</a> 由 <a href="https://github.com/mumuhaha487" target="_blank" style="color:#000;text-decoration:underline;">mumuhaha</a> 构建
+            {% endif %}
+
+            <form method="POST">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <div style="position: relative;">
+                        <span class="iconify" data-icon="lucide:user" style="position: absolute; left: 12px; top: 12px; color: #9ca3af;"></span>
+                        <input type="text" name="username" required style="padding-left: 36px;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <div style="position: relative;">
+                        <span class="iconify" data-icon="lucide:lock" style="position: absolute; left: 12px; top: 12px; color: #9ca3af;"></span>
+                        <input type="password" name="password" required style="padding-left: 36px;">
+                    </div>
+                </div>
+                <button type="submit" class="btn" style="width: 100%; justify-content: center;">
+                    登录后台
+                </button>
+            </form>
+            
+            <div style="text-align: center; margin-top: 1.5rem;">
+                <a href="/" style="color: var(--color-text-secondary); text-decoration: none; font-size: 0.9rem;">
+                    <span class="iconify" data-icon="lucide:arrow-left" style="vertical-align: -2px;"></span> 返回首页
+                </a>
+            </div>
+        </div>
+        <div style="text-align: center; padding: 2rem 0; color: #9ca3af; font-size: 0.9rem;">
+            <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color: inherit; text-decoration: none;">Turtle_Soup</a> 由 mumuhaha 构建 | <a href="https://beian.miit.gov.cn/" target="_blank" style="color: inherit; text-decoration: none;">赣ICP备2024038464号</a>
+        </div>
     </div>
 </body>
-</html> 
+</html>

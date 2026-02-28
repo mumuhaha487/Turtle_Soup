@@ -2,436 +2,252 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>管理员后台</title>
+    <title>管理员后台 - 海龟汤</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
     <style>
-        body {
-            font-family: 'Courier New', monospace;
-            background: #fff;
-            margin: 0;
-            min-height: 100vh;
+        .admin-section {
+            margin-bottom: 2rem;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
             display: flex;
-            flex-direction: column;
             align-items: center;
-            overflow-x: hidden;
-            position: relative;
+            gap: 1rem;
         }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image:
-                radial-gradient(circle at 20% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
-                radial-gradient(circle at 80% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
-                linear-gradient(to right, transparent 49%, rgba(0,0,0,0.05) 50%, transparent 51%);
-            z-index: -1;
-            pointer-events: none;
+        .stat-icon {
+            font-size: 2rem;
+            color: var(--color-primary);
+            background: rgba(5, 150, 105, 0.1);
+            padding: 0.75rem;
+            border-radius: var(--radius-sm);
         }
-        .container {
-            background: #fff;
-            border: 3px solid #000;
-            border-radius: 0;
-            padding: 32px 28px 18px 28px;
-            margin-top: 48px;
-            width: 100%;
-            max-width: 900px;
-            position: relative;
-        }
-        .container::before {
-            content: '';
-            position: absolute;
-            top: -3px;
-            left: -3px;
-            right: -3px;
-            bottom: -3px;
-            background: #000;
-            border-radius: 0;
-            z-index: -1;
-            transform: translate(6px, 6px);
-        }
-        h2 {
-            text-align: center;
-            color: #000;
-            font-weight: 700;
-            margin-bottom: 24px;
-            letter-spacing: 2px;
-            text-shadow: 2px 2px 0px #ccc;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 18px;
-            background: #fff;
-            border: 2px solid #000;
-            border-radius: 0;
-        }
-        th, td {
-            padding: 12px 10px;
-            text-align: center;
-            border: 1px solid #000;
-        }
-        th {
-            background: #fff;
-            color: #000;
-            font-weight: 700;
-            font-size: 16px;
-        }
-        tr:nth-child(even) { background: #f0f0f0; }
-        tr:nth-child(odd) { background: #fff; }
-        td {
-            color: #000;
-            font-size: 15px;
-        }
-        .btn {
-            background: #fff;
-            color: #000;
-            border: 2px solid #000;
-            border-radius: 0;
-            padding: 0 18px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.1s;
-            margin: 0 2px;
-            height: 36px;
-            position: relative;
-            font-family: 'Courier New', monospace;
-        }
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #000;
-            z-index: -1;
-            transform: translate(2px, 2px);
-            transition: transform 0.1s;
-        }
-        .btn:hover::before {
-            transform: translate(1px, 1px);
-        }
-        .btn:active {
-            transform: translate(1px, 1px);
-        }
-        .btn:active::before {
-            transform: translate(0px, 0px);
-        }
-        .btn-reject {
-            background: #fff;
-            border: 2px solid #000;
-        }
-        .btn-reject::before {
-            background: #000;
-        }
-        .btn-approve {
-            background: #fff;
-            border: 2px solid #000;
-        }
-        .btn-approve::before {
-            background: #000;
-        }
-        form { display: inline; }
-        .section {
-            margin-bottom: 32px;
-        }
-        .story-content {
-            max-width: 300px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+        textarea.code-editor {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>管理员后台</h2>
-        
-        <!-- 房间管理 -->
-        <div class="section">
-            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">房间管理</h3>
-            <table>
-                <tr>
-                    <th>房间邀请码</th>
-                    <th>房主</th>
-                    <th>成员</th>
-                    <th>操作</th>
-                </tr>
-                {% for room in rooms %}
-                <tr>
-                    <td>{{ room.code }}</td>
-                    <td>{{ room.owner }}</td>
-                    <td>{{ room.members|join(', ') }}</td>
-                    <td>
-                        <button class="btn" onclick="deleteRoom('{{ room.code }}')">删除</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </table>
-        </div>
-
-        <!-- 故事审核（已移除） -->
-        <div class="section" style="display: none;">
-            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">故事审核</h3>
-            <table id="pending-stories-table">
-                <tr>
-                    <th>故事名称</th>
-                    <th>编号</th>
-                    <th>操作</th>
-                </tr>
-            </table>
-        </div>
-
-        <!-- 已发布的故事 -->
-        <div class="section">
-            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">已发布的故事</h3>
-            <div class="input-row" style="display:flex;gap:10px;margin-bottom:10px;align-items:center;">
-                <input type="text" id="released-search" placeholder="搜索名称/编号/文件名" style="flex:1;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px 10px;background:#f8fafc;font-size:14px;">
-                <button class="btn" id="released-refresh">刷新</button>
+    <div class="container" style="max-width: 1200px;">
+        <header>
+            <div class="logo">
+                <span class="iconify" data-icon="lucide:shield-check" style="color: var(--color-primary);"></span>
+                <span>管理控制台</span>
             </div>
-            <div id="released-wrapper" style="max-height:420px;overflow-y:auto;border-radius:12px;background:#f8fafc;box-shadow:0 2px 8px 0 rgba(59,130,246,0.05);">
-                <table id="released-stories-table" style="margin:0;">
-                    <tr>
-                        <th>故事名称</th>
-                        <th>编号</th>
-                        <th>文件名</th>
-                        <th>操作</th>
-                    </tr>
+            <nav>
+                <a href="/" class="btn btn-secondary">
+                    <span class="iconify" data-icon="lucide:log-out"></span> 退出后台
+                </a>
+            </nav>
+        </header>
+
+        <!-- Stats Overview -->
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="stat-icon"><span class="iconify" data-icon="lucide:home"></span></div>
+                <div>
+                    <div style="font-size: 0.9rem; color: var(--color-text-secondary);">活跃房间</div>
+                    <div style="font-size: 1.5rem; font-weight: 700;">{{ rooms|length }}</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><span class="iconify" data-icon="lucide:book-open"></span></div>
+                <div>
+                    <div style="font-size: 0.9rem; color: var(--color-text-secondary);">故事库</div>
+                    <div style="font-size: 1.5rem; font-weight: 700;" id="total-stories-count">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card admin-section">
+            <h3><span class="iconify" data-icon="lucide:monitor"></span> 房间管理</h3>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>房间码</th>
+                            <th>房主</th>
+                            <th>成员</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for room in rooms %}
+                        <tr>
+                            <td><span style="font-family: monospace; font-weight: 700; background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">{{ room.code }}</span></td>
+                            <td>{{ room.owner }}</td>
+                            <td>{{ room.members|join(', ') }}</td>
+                            <td>
+                                <button class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.9rem;" onclick="deleteRoom('{{ room.code }}')">
+                                    <span class="iconify" data-icon="lucide:trash-2"></span> 强制关闭
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--color-text-secondary); padding: 2rem;">
+                                暂无活跃房间
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- 选项管理 -->
-        <div class="section">
-            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">创建房间下拉选项管理</h3>
-            <div style="display:flex;gap:16px;flex-wrap:wrap;">
-                <div style="flex:1;min-width:260px;">
-                    <div style="font-weight:bold;color:#334155;margin-bottom:6px;">模型列表</div>
-                    <textarea id="opt-models" style="width:100%;height:120px;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;" placeholder="每行一个模型名"></textarea>
+        <div class="card admin-section">
+            <h3><span class="iconify" data-icon="lucide:library"></span> 故事管理</h3>
+            
+            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                <div style="position: relative; flex: 1;">
+                    <span class="iconify" data-icon="lucide:search" style="position: absolute; left: 12px; top: 12px; color: #9ca3af;"></span>
+                    <input type="text" id="released-search" placeholder="搜索名称、ID..." style="padding-left: 36px;">
                 </div>
-                <div style="flex:1;min-width:260px;">
-                    <div style="font-weight:bold;color:#334155;margin-bottom:6px;">代理地址列表</div>
-                    <textarea id="opt-base-urls" style="width:100%;height:120px;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;" placeholder="每行一个代理地址"></textarea>
-                </div>
-                <div style="flex:1;min-width:260px;">
-                    <div style="font-weight:bold;color:#334155;margin-bottom:6px;">API Key 列表</div>
-                    <textarea id="opt-api-keys" style="width:100%;height:120px;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;" placeholder="每行一个API Key（可选）"></textarea>
-                </div>
+                <button class="btn btn-secondary" id="released-refresh">
+                    <span class="iconify" data-icon="lucide:refresh-cw"></span> 刷新
+                </button>
             </div>
-            <div style="margin-top:10px;">
-                <button class="btn" onclick="saveOptions()">保存选项</button>
-                <span id="opt-result" style="margin-left:8px;color:#64748b;"></span>
+
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: var(--radius-sm);">
+                <table id="released-stories-table" style="margin: 0;">
+                    <thead>
+                        <tr>
+                            <th style="position: sticky; top: 0; z-index: 10;">故事名称</th>
+                            <th style="position: sticky; top: 0; z-index: 10;">ID</th>
+                            <th style="position: sticky; top: 0; z-index: 10;">文件名</th>
+                            <th style="position: sticky; top: 0; z-index: 10;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- 公告管理 -->
-        <div class="section">
-            <h3 style="color: #000; margin-bottom: 16px; font-weight: bold;">首页公告</h3>
-            <textarea id="ann-content" style="width:100%;height:160px;border:1.5px solid #cbd5e1;border-radius:8px;padding:10px;" placeholder="在此输入公告内容，支持换行"></textarea>
-            <div style="margin-top:10px;">
-                <button class="btn" onclick="saveAnnouncements()">保存公告</button>
-                <span id="ann-result" style="margin-left:8px;color:#64748b;"></span>
+        <div class="card admin-section">
+            <h3><span class="iconify" data-icon="lucide:settings"></span> 全局配置</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <div class="form-group">
+                    <label>模型列表 (每行一个)</label>
+                    <textarea id="opt-models" rows="6" class="code-editor" placeholder="gpt-4o..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>代理地址 (每行一个)</label>
+                    <textarea id="opt-base-urls" rows="6" class="code-editor" placeholder="https://..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>API Keys (每行一个, 可选)</label>
+                    <textarea id="opt-api-keys" rows="6" class="code-editor" placeholder="sk-..."></textarea>
+                </div>
             </div>
+            <button class="btn" onclick="saveOptions()">
+                <span class="iconify" data-icon="lucide:save"></span> 保存配置
+            </button>
+            <span id="opt-result" style="margin-left: 1rem; color: var(--color-text-secondary);"></span>
+        </div>
+
+        <div class="card admin-section">
+            <h3><span class="iconify" data-icon="lucide:megaphone"></span> 系统公告</h3>
+            <div class="form-group">
+                <textarea id="ann-content" rows="4" placeholder="输入首页公告内容..."></textarea>
+            </div>
+            <button class="btn" onclick="saveAnnouncements()">
+                <span class="iconify" data-icon="lucide:save"></span> 发布公告
+            </button>
+            <span id="ann-result" style="margin-left: 1rem; color: var(--color-text-secondary);"></span>
+        </div>
+        
+        <div style="text-align: center; padding: 2rem 0; color: #9ca3af; font-size: 0.9rem;">
+            <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color: inherit; text-decoration: none;">Turtle_Soup</a> 由 mumuhaha 构建 | <a href="https://beian.miit.gov.cn/" target="_blank" style="color: inherit; text-decoration: none;">赣ICP备2024038464号</a>
         </div>
     </div>
+
     <script>
+        // --- Room Management ---
         function deleteRoom(code) {
-            if (!confirm('确定要删除该房间吗？')) return;
+            if (!confirm('确定要强制关闭该房间吗？玩家将被踢出。')) return;
             fetch('/admin/delete_room', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 body: 'code=' + encodeURIComponent(code)
             })
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    alert('删除成功');
                     location.reload();
                 } else {
-                    alert('删除失败：' + (data.error || '未知错误'));
+                    alert('操作失败：' + (data.error || '未知错误'));
                 }
             })
-            .catch(error => {
-                alert('删除失败：网络错误');
-            });
+            .catch(() => alert('网络错误'));
         }
 
-        // 加载待审核故事
-        async function loadPendingStories() {
-            try {
-                const response = await fetch('/api/get_pending_stories');
-                const data = await response.json();
-                const table = document.getElementById('pending-stories-table');
-                
-                // 清除现有行（保留表头）
-                const rows = table.querySelectorAll('tr');
-                for (let i = 1; i < rows.length; i++) {
-                    rows[i].remove();
-                }
-                
-                if (data.stories.length === 0) {
-                    const row = table.insertRow();
-                    const cell = row.insertCell();
-                    cell.colSpan = 3;
-                    cell.textContent = '暂无待审核故事';
-                    cell.style.textAlign = 'center';
-                    cell.style.color = '#64748b';
-                    return;
-                }
-                
-                data.stories.forEach(story => {
-                    const row = table.insertRow();
-                    row.innerHTML = `
-                        <td>${story.name || '无名称'}</td>
-                        <td>${story.id || ''}</td>
-                        <td>
-                            <button class="btn btn-approve" onclick="approveStory('${story.filename}')">通过</button>
-                            <button class="btn btn-reject" onclick="rejectStory('${story.filename}')">拒绝</button>
-                        </td>
-                    `;
-                });
-            } catch (error) {
-                console.error('加载待审核故事失败:', error);
-            }
-        }
-
-        function approveStory(filename) {
-            if (!confirm('确定要通过这个故事吗？')) return;
-            const formData = new FormData();
-            formData.append('filename', filename);
-            
-            fetch('/api/approve_story', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('审核通过成功');
-                    loadPendingStories();
-                } else {
-                    alert('审核失败：' + (data.error || '未知错误'));
-                }
-            })
-            .catch(error => {
-                alert('审核失败：网络错误');
-            });
-        }
-
-        function rejectStory(filename) {
-            if (!confirm('确定要拒绝这个故事吗？')) return;
-            const formData = new FormData();
-            formData.append('filename', filename);
-            
-            fetch('/api/reject_story', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('拒绝成功');
-                    loadPendingStories();
-                } else {
-                    alert('拒绝失败：' + (data.error || '未知错误'));
-                }
-            })
-            .catch(error => {
-                alert('拒绝失败：网络错误');
-            });
-        }
-
-        // 加载已发布的故事
+        // --- Story Management ---
         let releasedCache = [];
         async function loadReleasedStories() {
             try {
                 const response = await fetch('/api/get_plaza_stories');
                 const data = await response.json();
                 releasedCache = data.stories || [];
-                const table = document.getElementById('released-stories-table');
-                // 清除现有行（保留表头）
-                const rows = table.querySelectorAll('tr');
-                for (let i = 1; i < rows.length; i++) {
-                    rows[i].remove();
-                }
-                const list = releasedCache;
-                if (list.length === 0) {
-                    const row = table.insertRow();
-                    const cell = row.insertCell();
-                    cell.colSpan = 4;
-                    cell.textContent = '暂无已发布故事';
-                    cell.style.textAlign = 'center';
-                    cell.style.color = '#64748b';
-                    return;
-                }
-                list.forEach(story => {
-                    const row = table.insertRow();
-                    row.innerHTML = `
-                        <td>${story.name || '无名称'}</td>
-                        <td>${story.id || ''}</td>
-                        <td>${story.filename || ''}</td>
-                        <td>
-                            <button class="btn" onclick="viewStory('${story.filename}')">查看</button>
-                            <button class="btn btn-reject" onclick="deleteReleased('${story.filename}')">删除</button>
-                        </td>
-                    `;
-                });
+                document.getElementById('total-stories-count').textContent = releasedCache.length;
+                renderStories(releasedCache);
             } catch (error) {
-                console.error('加载已发布故事失败:', error);
+                console.error('Failed to load stories:', error);
             }
         }
 
-        function renderReleasedFiltered(keyword) {
-            const table = document.getElementById('released-stories-table');
-            const rows = table.querySelectorAll('tr');
-            for (let i = 1; i < rows.length; i++) rows[i].remove();
-            const list = releasedCache.filter(s => {
-                if (!keyword) return true;
-                const k = keyword.toLowerCase();
-                return (s.name||'').toLowerCase().includes(k) || (s.id||'').toLowerCase().includes(k) || (s.filename||'').toLowerCase().includes(k);
-            });
+        function renderStories(list) {
+            const tbody = document.querySelector('#released-stories-table tbody');
+            tbody.innerHTML = '';
+            
             if (list.length === 0) {
-                const row = table.insertRow();
-                const cell = row.insertCell();
-                cell.colSpan = 4;
-                cell.textContent = '无匹配结果';
-                cell.style.textAlign = 'center';
-                cell.style.color = '#64748b';
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:2rem;color:#9ca3af;">暂无数据</td></tr>`;
                 return;
             }
+
             list.forEach(story => {
-                const row = table.insertRow();
-                row.innerHTML = `
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
                     <td>${story.name || '无名称'}</td>
-                    <td>${story.id || ''}</td>
-                    <td>${story.filename || ''}</td>
-                    <td><button class="btn btn-reject" onclick="deleteReleased('${story.filename}')">删除</button></td>
+                    <td><span style="font-family:monospace;font-size:0.9em;color:#6b7280;">${story.id || ''}</span></td>
+                    <td style="font-family:monospace;font-size:0.8em;color:#6b7280;">${story.filename || ''}</td>
+                    <td>
+                        <button class="btn btn-danger" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;" onclick="deleteReleased('${story.filename}')">
+                            <span class="iconify" data-icon="lucide:trash-2"></span> 删除
+                        </button>
+                    </td>
                 `;
+                tbody.appendChild(tr);
             });
         }
 
-        // 绑定搜索与刷新
-        (function bindReleasedSearch(){
-            const input = document.getElementById('released-search');
-            const btn = document.getElementById('released-refresh');
-            if (input) {
-                input.addEventListener('input', function(){
-                    renderReleasedFiltered(this.value.trim());
-                });
-            }
-            if (btn) {
-                btn.addEventListener('click', async function(){
-                    await loadReleasedStories();
-                    renderReleasedFiltered(document.getElementById('released-search').value.trim());
-                });
-            }
-        })();
+        document.getElementById('released-search').addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            const filtered = releasedCache.filter(s => 
+                (s.name || '').toLowerCase().includes(val) || 
+                (s.id || '').toLowerCase().includes(val) ||
+                (s.filename || '').toLowerCase().includes(val)
+            );
+            renderStories(filtered);
+        });
+
+        document.getElementById('released-refresh').onclick = loadReleasedStories;
 
         function deleteReleased(filename) {
-            if (!confirm('确定要删除该已发布的故事吗？')) return;
+            if (!confirm('确定要永久删除这个故事吗？')) return;
             const formData = new FormData();
             formData.append('filename', filename);
             fetch('/api/delete_released_story', {
@@ -439,47 +255,47 @@
                 body: formData
             }).then(r => r.json()).then(d => {
                 if (d.success) {
-                    alert('删除成功');
-                    loadReleasedStories().then(()=>{
-                        const kw = (document.getElementById('released-search')||{}).value||'';
-                        renderReleasedFiltered(kw.trim());
-                    });
+                    loadReleasedStories();
                 } else {
                     alert('删除失败：' + (d.error || '未知错误'));
                 }
-            }).catch(() => alert('删除失败：网络错误'));
+            }).catch(() => alert('网络错误'));
         }
 
-        // 选项管理
+        // --- Options & Announcements ---
         async function loadOptions() {
             try {
                 const resp = await fetch('/api/get_options');
                 const data = await resp.json();
-                const opt = data.options || {models:[], base_urls:[], api_keys:[]};
+                const opt = data.options || {};
                 document.getElementById('opt-models').value = (opt.models || []).join('\n');
                 document.getElementById('opt-base-urls').value = (opt.base_urls || []).join('\n');
                 document.getElementById('opt-api-keys').value = (opt.api_keys || []).join('\n');
             } catch (e) {}
         }
+
         async function saveOptions() {
-            const toList = (s)=> s.split(/\n+/).map(x=>x.trim()).filter(Boolean);
-            const models = toList(document.getElementById('opt-models').value);
-            const base_urls = toList(document.getElementById('opt-base-urls').value);
-            const api_keys = toList(document.getElementById('opt-api-keys').value);
+            const toList = (val) => val.split(/\n+/).map(x => x.trim()).filter(Boolean);
+            const body = {
+                models: toList(document.getElementById('opt-models').value),
+                base_urls: toList(document.getElementById('opt-base-urls').value),
+                api_keys: toList(document.getElementById('opt-api-keys').value)
+            };
+            
             try {
                 const resp = await fetch('/api/save_options', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({models, base_urls, api_keys})
+                    body: JSON.stringify(body)
                 });
                 const data = await resp.json();
-                document.getElementById('opt-result').textContent = data.success ? '保存成功' : (data.error || '保存失败');
-            } catch (e) {
-                document.getElementById('opt-result').textContent = '保存失败（网络错误）';
-            }
+                const resultSpan = document.getElementById('opt-result');
+                resultSpan.textContent = data.success ? '保存成功' : '保存失败';
+                resultSpan.style.color = data.success ? 'var(--color-primary)' : 'var(--color-danger)';
+                setTimeout(() => resultSpan.textContent = '', 3000);
+            } catch (e) { alert('网络错误'); }
         }
 
-        // 公告管理
         async function loadAnnouncements() {
             try {
                 const resp = await fetch('/api/get_announcements');
@@ -487,31 +303,26 @@
                 document.getElementById('ann-content').value = data.content || '';
             } catch (e) {}
         }
+
         async function saveAnnouncements() {
             try {
-                const content = document.getElementById('ann-content').value;
                 const resp = await fetch('/api/save_announcements', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({content})
+                    body: JSON.stringify({content: document.getElementById('ann-content').value})
                 });
                 const data = await resp.json();
-                document.getElementById('ann-result').textContent = data.success ? '保存成功' : (data.error || '保存失败');
-            } catch (e) {
-                document.getElementById('ann-result').textContent = '保存失败（网络错误）';
-            }
+                const resultSpan = document.getElementById('ann-result');
+                resultSpan.textContent = data.success ? '发布成功' : '发布失败';
+                resultSpan.style.color = data.success ? 'var(--color-primary)' : 'var(--color-danger)';
+                setTimeout(() => resultSpan.textContent = '', 3000);
+            } catch (e) { alert('网络错误'); }
         }
 
-        // 页面加载时获取待审核和已发布故事
-        loadPendingStories();
-        loadReleasedStories().then(()=>{
-            renderReleasedFiltered('');
-        });
+        // Init
+        loadReleasedStories();
         loadOptions();
         loadAnnouncements();
     </script>
-    <div style="text-align:center;margin-top:20px;color:#64748b;font-size:12px;">
-        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color:#3b82f6;text-decoration:none;">Turtle_Soup</a> 由 <a href="https://github.com/mumuhaha487" target="_blank" style="color:#3b82f6;text-decoration:none;">mumuhaha</a> 构建
-    </div>
 </body>
-</html> 
+</html>

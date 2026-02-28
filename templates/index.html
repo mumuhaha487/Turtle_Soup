@@ -2,308 +2,363 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>我嘞个龟龟</title>
+    <title>海龟汤 - 沉浸式推理</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet"> -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
     <style>
-        body {
-            font-family: 'Courier New', monospace;
-            background: #fff;
-            margin: 0;
-            min-height: 100vh;
+        /* Specific overrides for SPA sections */
+        .chat-layout {
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 1.5rem;
+            height: calc(100vh - 140px);
+        }
+
+        @media (max-width: 768px) {
+            .chat-layout {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .chat-container {
+                height: 500px;
+            }
+        }
+
+        .chat-container {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            overflow-x: hidden;
-            position: relative;
-        }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
             height: 100%;
-            background-image:
-                radial-gradient(circle at 20% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
-                radial-gradient(circle at 80% 50%, transparent 20%, rgba(0,0,0,0.01) 21%),
-                linear-gradient(to right, transparent 49%, rgba(0,0,0,0.05) 50%, transparent 51%);
-            z-index: -1;
-            pointer-events: none;
         }
-        .container {
-            background: #fff;
-            border: 3px solid #000;
-            border-radius: 0;
-            padding: 32px 28px 18px 28px;
-            margin-top: 48px;
-            width: 100%;
-            max-width: 480px;
-            position: relative;
-        }
-        .container::before {
-            content: '';
-            position: absolute;
-            top: -3px;
-            left: -3px;
-            right: -3px;
-            bottom: -3px;
-            background: #000;
-            border-radius: 0;
-            z-index: -1;
-            transform: translate(6px, 6px);
-        }
-        h2, h3 {
-            text-align: center;
-            color: #000;
-            font-weight: 700;
-            margin-bottom: 24px;
-            letter-spacing: 2px;
-            text-shadow: 2px 2px 0px #ccc;
-        }
-        .btn {
-            background: #fff;
-            color: #000;
-            border: 3px solid #000;
-            border-radius: 0;
-            padding: 0 22px;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.1s;
-            margin: 8px 0;
-            height: 40px;
-            position: relative;
-            font-family: 'Courier New', monospace;
-        }
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #000;
-            z-index: -1;
-            transform: translate(4px, 4px);
-            transition: transform 0.1s;
-        }
-        .btn:hover::before {
-            transform: translate(2px, 2px);
-        }
-        .btn:active {
-            transform: translate(2px, 2px);
-        }
-        .btn:active::before {
-            transform: translate(0px, 0px);
-        }
-        .form-group { margin-bottom: 18px; }
-        label { color: #000; font-size: 15px; display: block; margin-bottom: 6px; font-weight: bold; }
-        input[type=text], input[type=password] {
-            border: 2px solid #000;
-            border-radius: 0;
-            padding: 7px 12px;
-            font-size: 15px;
-            width: 100%;
-            margin-top: 4px;
-            transition: all 0.1s;
-            font-family: 'Courier New', monospace;
-            background: #fff;
-        }
-        input:focus {
-            border: 2px solid #000;
-            outline: none;
-            box-shadow: 2px 2px 0px #ccc;
-        }
-        #chat-box {
-            width: 100%;
-            height: 320px;
-            border-radius: 0;
-            border: 2px solid #000;
-            background: #fff;
+
+        .chat-messages {
+            flex: 1;
             overflow-y: auto;
-            padding: 18px 12px 12px 12px;
-            margin-bottom: 18px;
-            box-sizing: border-box;
+            padding: 1.5rem;
+            background: #f9fafb;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 1rem;
         }
+
         .bubble {
             max-width: 80%;
-            padding: 10px 16px;
-            border-radius: 0;
-            font-size: 15px;
-            line-height: 1.6;
-            word-break: break-word;
-            border: 2px solid #000;
+            padding: 1rem;
+            border-radius: var(--radius-md);
             position: relative;
+            line-height: 1.5;
+            word-wrap: break-word;
         }
-        .bubble::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #000;
-            z-index: -1;
-            transform: translate(3px, 3px);
-        }
+
         .msg-user {
             align-self: flex-end;
-            background: #fff;
-            color: #000;
+            background: var(--color-primary);
+            color: white;
+            border-bottom-right-radius: 2px;
         }
+
         .msg-ai {
             align-self: flex-start;
-            background: #f0f0f0;
-            color: #000;
+            background: white;
+            border: 1px solid #e5e7eb;
+            color: var(--color-text-primary);
+            border-bottom-left-radius: 2px;
         }
-        .msg-nickname { font-weight: bold; margin-right: 6px; }
-        .input-row { display: flex; gap: 10px; margin-top: 6px; }
-        #user-input {
-            flex: 1;
-            border: 2px solid #000;
-            border-radius: 0;
-            padding: 10px 14px;
-            font-size: 15px;
-            transition: all 0.1s;
-            font-family: 'Courier New', monospace;
-            background: #fff;
+        
+        .msg-nickname {
+            font-weight: 700;
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
+            display: block;
+            opacity: 0.8;
         }
-        #user-input:focus {
-            border: 2px solid #000;
-            outline: none;
-            box-shadow: 2px 2px 0px #ccc;
+
+        .chat-input-area {
+            padding: 1rem;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 0.75rem;
         }
-        #send-btn { min-width: 70px; }
-        .invite-code {
-            font-size: 18px;
-            color: #000;
-            font-weight: bold;
-            text-align: center;
-            margin: 10px 0;
-            letter-spacing: 2px;
-            border: 2px solid #000;
-            padding: 8px;
-            background: #fff;
+
+        .user-list-panel {
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            padding: 1rem;
+            /* Height handled by flex in parent */
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
-        .room-info { text-align: center; color: #000; margin-bottom: 10px; font-weight: bold; }
-        .delete-btn {
-            background: #fff;
-            margin-top: 10px;
-            border: 3px solid #000;
+        
+        .user-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-radius: var(--radius-sm);
         }
-        .delete-btn::before {
-            background: #000;
+        
+        .user-item:hover {
+            background: #f3f4f6;
         }
-        @media (max-width: 600px) {
-            .main-layout { flex-direction: column !important; align-items: stretch !important; }
-            .container { max-width: 100vw !important; margin-right: 0 !important; margin-top: 10px !important; border-radius: 0 !important; box-shadow: none !important; padding: 12px 4px 10px 4px !important; }
-            #user-list-panel { max-width: 100vw !important; min-width: 0 !important; margin-top: 10px !important; border-radius: 0 !important; box-shadow: none !important; padding: 10px 4px 10px 4px !important; order: 2; }
-            .btn, input[type=text], input[type=password] { font-size: 17px !important; width: 100% !important; box-sizing: border-box !important; }
-            .form-group { margin-bottom: 14px !important; }
-            #page-chat { flex-direction: column; }
-            .input-row { flex-direction: column !important; gap: 6px; margin-top: 8px; margin-bottom: 0; }
-            #user-input { font-size: 17px; padding: 10px 10px; border-radius: 8px; min-width: 0; width: 100%; }
-            #send-btn { min-width: 60px; font-size: 17px; padding: 0 10px; height: 40px; width: 100%; }
+
+        /* Hero styles */
+        .hero-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .hero-wrapper {
+                flex-direction: column-reverse;
+                text-align: center;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="main-layout" style="display:flex;flex-direction:row;justify-content:center;align-items:flex-start;width:100vw;min-height:100vh;background:#fff;">
-            <div class="container" style="flex:1;max-width:600px;margin-right:32px;">
-            <!-- 首页 -->
-            <div id="page-home">
-                <h2>AI海龟汤聊天室</h2>
-                <button class="btn" onclick="showPage('create')">创建房间</button>
-                <button class="btn" onclick="showPage('join')">加入房间</button>
-                <button class="btn" onclick="window.open('/story_plaza', '_blank')">故事广场</button>
-                <button class="btn" onclick="window.open('/story_plaza#edit', '_blank')">修改我上传的海龟汤文件</button>
+    <div class="container" style="max-width: 1200px;">
+        <header>
+            <div class="logo">
+                <span class="iconify" data-icon="lucide:turtle" style="color: var(--color-primary);"></span>
+                <span>海龟汤 AI</span>
             </div>
-            <!-- 创建房间页 -->
-            <div id="page-create" style="display:none;">
-                <h3>创建房间</h3>
-                <div class="form-group">
-                    <label>昵称</label>
-                    <input type="text" id="create-nickname" maxlength="16" placeholder="请输入昵称">
-                </div>
-                <div class="form-group">
-                    <label>代理地址</label>
-                    <div style="display:flex;gap:8px;">
-                        <select id="create-base-url-select" style="flex:1;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;background:#f8fafc;"></select>
-                        <input type="text" id="create-base-url" placeholder="自定义代理地址（可选）" style="flex:1;">
+            <!-- Admin Link Hidden -->
+            <!-- <nav>
+                <a href="/admin/login" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    <span class="iconify" data-icon="lucide:shield"></span> 管理员
+                </a>
+            </nav> -->
+        </header>
+
+        <!-- PAGE: HOME -->
+        <div id="page-home" class="page-section" style="display: block;">
+            <div class="hero-wrapper">
+                <div style="flex: 1;">
+                    <h1 style="font-size: 3rem; margin-bottom: 1.5rem;">
+                        <span style="color: var(--color-primary);">海龟汤</span><br>
+                        AI 沉浸式推理
+                    </h1>
+                    <p style="font-size: 1.2rem; color: var(--color-text-secondary); margin-bottom: 2.5rem; max-width: 500px;">
+                        与高智商 AI 主持人博弈，在有限的线索中还原惊悚、悬疑或温馨的故事真相。
+                    </p>
+                    
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn" onclick="showPage('create')" style="padding: 1rem 2rem; font-size: 1.1rem;">
+                            <span class="iconify" data-icon="lucide:plus-circle"></span> 创建房间
+                        </button>
+                        <button class="btn btn-secondary" onclick="showPage('join')" style="padding: 1rem 2rem; font-size: 1.1rem;">
+                            <span class="iconify" data-icon="lucide:log-in"></span> 加入房间
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                        <button class="btn btn-secondary" onclick="window.location.href='/story_plaza'">
+                            <span class="iconify" data-icon="lucide:library"></span> 故事广场
+                        </button>
+                        <button class="btn btn-secondary" onclick="window.location.href='/story_plaza#edit'">
+                            <span class="iconify" data-icon="lucide:edit"></span> 管理我的故事
+                        </button>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>API Key</label>
-                    <div style="display:flex;gap:8px;">
-                        <select id="create-api-key-select" style="flex:1;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;background:#f8fafc;"></select>
-                        <input type="text" id="create-api-key" placeholder="自定义API Key（可选）" style="flex:1;">
-                    </div>
+                
+                <div style="flex: 1; display: flex; justify-content: center;">
+                    <img src="{{ url_for('static', filename='images/leimiule.gif') }}" alt="Illustration" class="undraw-img" style="max-width: 100%; height: auto;">
                 </div>
-                <div class="form-group">
-                    <label>模型名</label>
-                    <div style="display:flex;gap:8px;">
-                        <select id="create-model-select" style="flex:1;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px;background:#f8fafc;"></select>
-                        <input type="text" id="create-model" placeholder="自定义模型名（可选）" style="flex:1;">
-                    </div>
-                </div>
-                <button class="btn" id="create-room-btn">创建并进入房间</button>
-                <button class="btn" onclick="showPage('home')">返回首页</button>
-                <div id="create-error" style="color:#f87171;margin-top:8px;"></div>
-            </div>
-            <!-- 加入房间页 -->
-            <div id="page-join" style="display:none;">
-                <h3>加入房间</h3>
-                <div class="form-group">
-                    <label>昵称</label>
-                    <input type="text" id="join-nickname" maxlength="16" placeholder="请输入昵称">
-                </div>
-                <div class="form-group">
-                    <label>邀请码</label>
-                    <input type="text" id="join-code" maxlength="8" placeholder="请输入邀请码">
-                </div>
-                <button class="btn" id="join-room-btn">加入房间</button>
-                <button class="btn" onclick="showPage('home')">返回首页</button>
-                <div id="join-error" style="color:#f87171;margin-top:8px;"></div>
-            </div>
-            <!-- 群聊页 -->
-            <div id="page-chat" style="display:none;">
-                <div class="room-info">
-                    <span id="room-info-text"></span>
-                </div>
-                <!-- 新增：题目上传/切换/展示区 -->
-                <!-- story-ops 和 current-story 由JS动态插入 -->
-                <div class="invite-code">邀请码：<span id="invite-code"></span></div>
-                <!-- 新增：无AI群聊聊天框 -->
-                <div id="chat-box-chat" style="background:#fff;border:2px solid #000;border-radius:0;padding:10px 8px 8px 8px;margin-bottom:12px;min-height:60px;max-height:180px;overflow-y:auto;"></div>
-                <div class="input-row" style="margin-bottom:6px;align-items:center;">
-                    <input type="text" id="chat-input" placeholder="房间群聊（无AI，支持@用户名高亮）..." style="flex:1;">
-                    <button class="btn" id="chat-send-btn" style="margin-left:8px;min-width:70px;">发送</button>
-                </div>
-                <div id="current-story"></div>
-                <div style="margin: 10px 0; font-weight: bold; text-align: center; font-size: 1.1rem; background: linear-gradient(90deg, #3b82f6 10%, #a21caf 90%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-fill-color: transparent;">欢迎来到海龟汤游戏！接下来除了提出问题外，你在还原故事失败时还可以请求我引导你的思路，或回复“整理线索”让我总结当前的线索。如果你已经推理出故事全部内容并且准备复盘通关的话请在消息开头回复“开始故事还原：”然后加上你的还原故事内容。”。</div>
-                <div id="chat-box"></div>
-                <div class="input-row">
-                    <textarea id="user-input" placeholder="请输入内容..." rows="1" style="resize:vertical;min-height:40px;max-height:120px;"></textarea>
-                    <button class="btn" id="send-btn">发送</button>
-                </div>
-                <button class="btn delete-btn" id="delete-room-btn" style="display:none;">删除房间（房主）</button>
-                <button class="btn" onclick="leaveRoom()">退出房间</button>
             </div>
         </div>
-        <!-- 右侧在线用户列表 -->
-        <div id="user-list-panel" style="background:#fff;border:3px solid #000;border-radius:0;padding:10px 0 10px 0;margin-top:48px;max-width:320px;min-width:180px;position:relative;">
-            <div style="position:absolute;top:-3px;left:-3px;right:-3px;bottom:-3px;background:#000;z-index:-1;transform:translate(6px,6px);"></div>
-            <div style="font-size:15px;color:#000;font-weight:bold;padding-left:18px;margin-bottom:6px;font-family:'Courier New',monospace;">在线成员</div>
-            <div id="user-list"></div>
+
+        <!-- PAGE: CREATE ROOM -->
+        <div id="page-create" class="page-section" style="max-width: 500px; margin: 0 auto; display: none;">
+            <div class="card">
+                <h3><span class="iconify" data-icon="lucide:plus-square"></span> 创建房间</h3>
+                <div class="form-group">
+                    <label>你的昵称</label>
+                    <input type="text" id="create-nickname" maxlength="16" placeholder="例如：福尔摩斯">
+                </div>
+                
+                <details style="margin-bottom: 1.5rem;">
+                    <summary style="cursor: pointer; color: var(--color-text-secondary); margin-bottom: 1rem;">高级 API 设置</summary>
+                    <div class="form-group">
+                        <label>代理地址 (Base URL)</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="create-base-url-select" style="width: 50%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: var(--radius-sm);"></select>
+                            <input type="text" id="create-base-url" placeholder="自定义..." style="flex: 1;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="create-api-key-select" style="width: 50%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: var(--radius-sm);"></select>
+                            <input type="password" id="create-api-key" placeholder="自定义..." style="flex: 1;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>模型</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="create-model-select" style="width: 50%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: var(--radius-sm);"></select>
+                            <input type="text" id="create-model" placeholder="自定义..." style="flex: 1;">
+                        </div>
+                    </div>
+                </details>
+
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn" id="create-room-btn" style="flex: 1; justify-content: center;">创建并进入</button>
+                    <button class="btn btn-secondary" onclick="showPage('home')">返回</button>
+                </div>
+                <div id="create-error" style="color: var(--color-danger); margin-top: 1rem; text-align: center;"></div>
+            </div>
+        </div>
+
+        <!-- PAGE: JOIN ROOM -->
+        <div id="page-join" class="page-section" style="max-width: 500px; margin: 0 auto; display: none;">
+            <div class="card">
+                <h3><span class="iconify" data-icon="lucide:log-in"></span> 加入房间</h3>
+                <div class="form-group">
+                    <label>你的昵称</label>
+                    <input type="text" id="join-nickname" maxlength="16" placeholder="例如：华生">
+                </div>
+                <div class="form-group">
+                    <label>房间邀请码</label>
+                    <input type="text" id="join-code" maxlength="8" placeholder="例如：ABC12345" style="text-transform: uppercase;">
+                </div>
+                
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn" id="join-room-btn" style="flex: 1; justify-content: center;">加入游戏</button>
+                    <button class="btn btn-secondary" onclick="showPage('home')">返回</button>
+                </div>
+                <div id="join-error" style="color: var(--color-danger); margin-top: 1rem; text-align: center;"></div>
+            </div>
+        </div>
+
+        <!-- PAGE: CHAT (GAME) -->
+        <div id="page-chat" class="page-section" style="display: none;">
+            <div class="chat-layout">
+                <!-- Left: Main Chat -->
+                <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%;">
+                    <!-- Room Header Info -->
+                    <div style="background: white; padding: 1rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="color: var(--color-text-secondary); font-size: 0.9rem;">邀请码</span>
+                            <span id="invite-code" style="font-weight: 700; font-size: 1.2rem; margin-left: 0.5rem; color: var(--color-primary); letter-spacing: 1px;"></span>
+                        </div>
+                        <div id="room-info-text" style="font-size: 0.9rem; color: var(--color-text-secondary);"></div>
+                        <button class="btn btn-secondary" onclick="leaveRoom()" style="padding: 0.5rem;">
+                            <span class="iconify" data-icon="lucide:log-out"></span> 退出
+                        </button>
+                    </div>
+
+                    <!-- Current Story Info (Collapsible or Card) -->
+                    <div id="current-story" style="background: white; padding: 1rem; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+                        <!-- Story content injected by JS -->
+                    </div>
+
+                    <!-- Main Chat Area -->
+                    <div class="chat-container">
+                        <div id="chat-box" class="chat-messages">
+                            <!-- Messages injected by JS -->
+                            <div style="text-align: center; color: var(--color-text-secondary); margin-top: 2rem;">
+                                <span class="iconify" data-icon="lucide:message-square" style="font-size: 2rem; opacity: 0.5;"></span>
+                                <p>游戏开始！请提问...</p>
+                            </div>
+                        </div>
+                        <div class="chat-input-area">
+                            <textarea id="user-input" rows="1" placeholder="输入你的问题 (支持 Enter 发送)..." style="flex: 1; resize: none;"></textarea>
+                            <button class="btn" id="send-btn">
+                                <span class="iconify" data-icon="lucide:send"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Sidebar -->
+                <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%;">
+                    <!-- User List -->
+                    <div class="user-list-panel" style="flex: 0 0 auto; max-height: 200px;">
+                        <h4 style="margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="iconify" data-icon="lucide:users" style="color: var(--color-primary);"></span>
+                            在线成员
+                        </h4>
+                        <div id="user-list">
+                            <!-- Users injected by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Tools / Admin -->
+                    <div class="user-list-panel" style="flex: 0 0 auto;">
+                         <h4 style="margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="iconify" data-icon="lucide:wrench" style="color: var(--color-primary);"></span>
+                            工具箱
+                        </h4>
+                        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                             <!-- Story Ops (Admin only) -->
+                             <div id="story-ops" style="display: none;">
+                                <button class="btn btn-secondary" style="width: 100%; text-align: left; font-size: 0.9rem;" onclick="document.getElementById('upload-story-file').click()">
+                                    <span class="iconify" data-icon="lucide:upload"></span> 上传题目
+                                </button>
+                                <input type="file" id="upload-story-file" accept=".json" style="display: none;" onchange="handleUploadStory(this)">
+                                
+                                <button class="btn btn-secondary" style="width: 100%; text-align: left; font-size: 0.9rem; margin-top: 0.5rem;" onclick="showPlazaStorySelector()">
+                                    <span class="iconify" data-icon="lucide:library"></span> 从广场选择
+                                </button>
+                             </div>
+                             
+                             <button class="btn delete-btn" id="delete-room-btn" style="width: 100%; background: #fee2e2; color: #b91c1c; border: none; display: none;">
+                                <span class="iconify" data-icon="lucide:trash-2"></span> 删除房间
+                             </button>
+                        </div>
+                    </div>
+
+                    <!-- Chat (No AI) -->
+                     <div class="user-list-panel" style="flex: 1; display: flex; flex-direction: column; min-height: 200px;">
+                        <h4 style="margin-top: 0; margin-bottom: 0.5rem;">房间群聊</h4>
+                        <div id="chat-box-chat" style="flex: 1; overflow-y: auto; background: #f9fafb; border-radius: var(--radius-sm); padding: 0.5rem; font-size: 0.9rem; margin-bottom: 0.5rem; min-height: 100px;"></div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="chat-input" placeholder="聊天..." style="flex: 1; font-size: 0.9rem; padding: 0.4rem;">
+                            <button class="btn" id="chat-send-btn" style="padding: 0.4rem 0.8rem;">
+                                <span class="iconify" data-icon="lucide:send"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <div style="text-align:center;margin-top:20px;color:#000;font-size:12px;font-family:'Courier New',monospace;">
-        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color:#000;text-decoration:underline;">Turtle_Soup</a> 由 <a href="https://github.com/mumuhaha487" target="_blank" style="color:#000;text-decoration:underline;">mumuhaha</a> 构建 | <a href="https://beian.miit.gov.cn/" target="_blank" style="color:#000;text-decoration:underline;">赣ICP备2024038464号</a>
+    
+    <div style="text-align: center; padding: 2rem 0; color: #9ca3af; font-size: 0.9rem;">
+        <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color: inherit; text-decoration: none;">Turtle_Soup</a> 由 mumuhaha 构建 | <a href="https://beian.miit.gov.cn/" target="_blank" style="color: inherit; text-decoration: none;">赣ICP备2024038464号</a>
     </div>
-    <script src="/static/main.js"></script>
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <script>
+        // Additional Helper for Upload Story (since it wasn't in main.js fully or relies on ID)
+        async function handleUploadStory(input) {
+            if (!input.files[0]) return;
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+            formData.append('code', roomCode); // roomCode from main.js global scope
+            formData.append('nickname', nickname);
+            
+            try {
+                const res = await fetch('/api/upload_story', {method: 'POST', body: formData});
+                const data = await res.json();
+                if (data.success) {
+                    alert('上传成功');
+                    fetchCurrentStory(); // from main.js
+                } else {
+                    alert(data.error || '上传失败');
+                }
+            } catch(e) { alert('网络错误'); }
+            input.value = '';
+        }
+    </script>
 </body>
-</html> 
+</html>
