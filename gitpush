@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# ====================================================================
+# Git 智能推送脚本 (精简修复版)
+# 作者: Gemini
+# 描述: 修复 LFS 提交流程错误，且不修改 .gitignore。文件大小限制为 256MB。
+# ====================================================================
+
+# 检查当前目录是否为 Git 仓库
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "错误：当前目录不是一个 Git 仓库。请在仓库的根目录执行此脚本。"
+    exit 1
+fi
+
+# 标记是否需要强制推送。默认为不需要。
+needs_force_push=false
+# 标记 .gitattributes 是否被修改
+gitattributes_modified=false
+
+# ====================================================================
+# 第一步：清理 Git 历史中的大文件
+# ====================================================================
+echo "正在检查 Git 历史中的大文件..."
+
+filter_temp_file=$(mktemp)
+# 阈值为 256MB (268435456 bytes)
+git rev-list --objects --all | git cat-file --batch-check='%(objectname) %(objecttype) %(objectsize) %(rest)' | awk '$3 >= 268435456 {print $4}' > "$filter_temp_file"
+
+if [ -s "$filter_temp_file" ]; then
+    echo "警告：在 Git 历史中找到了大文件，正在重写历史记录..."
+    echo "此操作会永久性修改你的 Git 历史，请确保你已经备份了项目。"
+    needs_force_push=true
+
+    git filter-branch --index-filter "git rm --cached --ignore-unmatch $(cat "$filter_temp_file")" --tag-name-filter cat -- --all
+
+    if [ $? -ne 0 ]; then
+        echo "清理历史失败。脚本终止。"
+        rm -f "$filter_temp_file"
+        exit 1
+    fi
+
+    git reflog expire --expire=now --all
+    git gc --prune=now --aggressive
+    echo "大文件已从 Git 历史中移除。"
+else
+    echo "没有在 Git 历史中找到需要移除的大文件。"
+fi
+
+rm -f "$filter_temp_file"
+
+# ====================================================================
+# 第二步：检查和配置 Git LFS
+# ====================================================================
+echo "正在检查当前工作目录中的大文件..."
+
+# 阈值为 256MB
+find_result=$(find . -not -path "./.git/*" -type f -size +256M 2>/dev/null)
+
+if [ -n "$find_result" ]; then
+    echo "在当前工作目录中找到了大文件，正在添加到 Git LFS 跟踪..."
+    
+    for file in $find_result; do
+        if ! git check-attr -a -- "$file" | grep -q "lfs"; then
+            echo "正在添加 $file 到 Git LFS 追踪..."
+            git lfs track "$file"
+            gitattributes_modified=true
+        else
+            echo "$file 已被 Git LFS 追踪，跳过添加。"
+        fi
+    done
+else
+    echo "没有在当前工作目录中找到需要添加到 Git LFS 的大文件。"
+fi
+
+# ====================================================================
+# 第三步：提交和推送
+# ====================================================================
+
+# 将所有更改（包括 .gitattributes 和 LFS 文件）一次性暂存，以修复核心问题
+echo "正在暂存所有更改..."
+git add .
+
+# 检查是否有东西需要提交
+if ! git diff --staged --quiet; then
+    echo "正在提交文件..."
+    if [ "$gitattributes_modified" = true ]; then
+        git commit -m "Configure Git LFS and commit large files"
+    else
+        git commit -m "Update and commit remaining files"
+    fi
+else
+    echo "没有新的更改需要提交。"
+fi
+
+# 推送
+echo "正在推送到远程仓库..."
+if [ "$needs_force_push" = true ]; then
+    echo "由于历史记录被修改，正在执行强制推送..."
+    git push --force
+else
+    echo "无需强制推送，执行正常推送..."
+    git push
+fi
+
+if [ $? -ne 0 ]; then
+    echo "Git 推送失败。请手动解决问题。"
+    exit 1
+fi
+
+echo "脚本执行完毕。"
