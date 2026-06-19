@@ -1,4 +1,8 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, render_template, request, jsonify, session, redirect
+from flask_socketio import SocketIO, emit, join_room, leave_room, rooms as socket_rooms
 from openai import OpenAI
 from flask_cors import CORS
 import random, string, threading, json, time
@@ -6,17 +10,22 @@ import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import uuid
 import datetime
+import hashlib
 
 app = Flask(__name__)
 CORS(app)
-app.secret_key = 'haiguitang-secret-key'  # 用于session
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or hashlib.sha256(os.urandom(64)).hexdigest()
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins='*', max_http_buffer_size=10*1024*1024)
+
+def hash_password(pw):
+    return hashlib.sha256(('haigui_salt_' + pw).encode('utf-8')).hexdigest()
 
 # 加载config.json
 with open('config.json', 'r', encoding='utf-8') as f:
     config = json.load(f)
 PRESET = config.get('preset', None)
 ADMIN_USERNAME = config.get('admin', {}).get('username', 'admin')
-ADMIN_PASSWORD = config.get('admin', {}).get('password', 'admin123')
+ADMIN_PASSWORD_HASH = config.get('admin', {}).get('password_hash', '')
 STORY_COUNTER = config.get('story_counter', 1)
 OPTIONS = config.get('options', {
     'models': ['gpt-5-chat-2025-08-07', 'o3-mini-2025-01-31'],
@@ -49,14 +58,14 @@ def save_announcements(content):
 
 CUSTOM_STORY_RESTORE_GUIDE = (
     "【重要规则补充】\n"
-    "1. 当玩家的提问以‘开始故事还原：’开头时，只能回复：故事还原错误、故事还原正确、故事还原大致正确三种标签，回复内容只能是这三个标签之一，不能有其他内容、提示、解释或标点，用户会自行揭晓谜底或继续提问。\n"
-    "- 绝对不能给出任何提示、解释或标点。\n"
-    "2. 当玩家回复‘整理线索’时，请你整理之前所有AI回答中有用的线索和不重要的线索：\n"
-    "- 只总结AI已经明确回答过的有用线索和不重要的线索，绝对不要展开联想，绝对不要根据汤底推测未被问到的内容。\n"
-    "- ‘是’或‘不是’的问题，如果无法确定线索可输出‘不确定’。\n"
-    "- ‘不重要’的信息要单独整理和汇报。\n"
-    "- 整理时要简明扼要，避免剧透和过度推理。\n"
-    "其余时间请严格按照海龟汤规则进行推理问答。"
+    "1. 你是海龟汤推理游戏的主持人，你知道完整的汤底（答案），但绝对不能主动透露汤底的任何内容。玩家提问时你只能回答'是'、'不是'或'不重要'，不得给提示或解释。\n"
+    "2. 当玩家输入'整理线索'时，整理之前所有AI回答中有用的线索和不重要的线索：只总结AI已明确回答过的内容，绝对不要展开联想或推测汤底。'是'或'不是'的问题如无法确定可输出'不确定'。\n"
+    "3. 当玩家输入的内容以'【故事还原】'开头时，表示玩家正在进行故事还原。你需要根据汤底和胜利条件进行判断。判断标准：不需要完全一字不差，只要玩家还原的故事涵盖了胜利条件中要求的核心要点和大致意思即可。\n"
+    "   - 如果玩家的还原完全偏离事实或遗漏核心要点 → 回复'故事还原错误'\n"
+    "   - 如果玩家的还原涵盖了核心要点和大致意思 → 回复'故事还原正确'\n"
+    "   - 如果玩家的还原覆盖了大部分核心要点但有少量偏差或遗漏 → 回复'故事还原大致正确'\n"
+    "   - 回复内容只能是这三个标签之一，不能有其他内容、提示、解释或标点。\n"
+    "4. 其余时间严格按照海龟汤规则进行推理问答：玩家提问 → AI只能回复'是'/'不是'/'不重要'。\n"
 )
 
 # 故事广场相关目录
@@ -69,10 +78,12 @@ os.makedirs(STORY_RELEASE_DIR, exist_ok=True)
 rooms = {}
 rooms_lock = threading.Lock()
 
-# 全局线程池
-ai_executor = ThreadPoolExecutor(max_workers=8)
-# 存储AI异步任务结果
-ai_tasks = {}
+# Socket.IO 用户追踪: sid -> {room_code, nickname}
+socket_users = {}
+socket_users_lock = threading.Lock()
+
+# HTTP 降级用 AI 任务暂存
+ai_tasks_http = {}
 
 def gen_code(length=6):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
@@ -85,11 +96,22 @@ def index():
 def create_room():
     data = request.json
     nickname = data.get('nickname')
-    base_url = data.get('base_url')
-    api_key = data.get('api_key')
+    use_default = data.get('use_default', False)
     model = data.get('model')
-    if not (nickname and base_url and api_key and model):
-        return jsonify({'error': '参数不完整'}), 400
+    if not nickname:
+        return jsonify({'error': '请填写昵称'}), 400
+    if use_default:
+        if not OPTIONS.get('base_urls') or not OPTIONS.get('api_keys'):
+            return jsonify({'error': '服务器未配置默认 API，请使用自定义模式'}), 500
+        base_url = OPTIONS['base_urls'][0]
+        api_key = OPTIONS['api_keys'][0]
+    else:
+        base_url = data.get('base_url')
+        api_key = data.get('api_key')
+        if not (base_url and api_key):
+            return jsonify({'error': '请填写完整的 API 配置'}), 400
+    if not model:
+        return jsonify({'error': '请选择模型'}), 400
     code = gen_code()
     with rooms_lock:
         while code in rooms:
@@ -108,7 +130,7 @@ def create_room():
     return jsonify({'code': code})
 
 @app.route('/api/join_room', methods=['POST'])
-def join_room():
+def api_join_room():
     data = request.json
     nickname = data.get('nickname')
     code = data.get('code')
@@ -197,13 +219,13 @@ def get_chat_messages():
 
 @app.route('/api/send_message', methods=['POST'])
 def send_message():
+    """保留 HTTP 接口作为降级方案（WebSocket 不可用时使用）"""
     data = request.json
     code = data.get('code')
     nickname = data.get('nickname')
     content = data.get('content')
     if not (code and nickname and content):
         return jsonify({'error': '参数不完整'}), 400
-    # 1. 先加锁写入用户消息，复制room和messages
     with rooms_lock:
         room = rooms.get(code)
         if not room:
@@ -218,39 +240,29 @@ def send_message():
             'stories': room.get('stories'),
             'current_story': room.get('current_story'),
         }
-        messages_copy = list(room['messages'])
         ai_context_copy = list(room.get('ai_context', []))
-    # 2. 生成唯一消息ID
     msg_id = str(uuid.uuid4())
-    # 3. 在线程池中异步执行AI调用
+    # 使用 eventlet 执行异步 AI 调用
+    ai_reply_holder = {}
     def ai_task():
         preset = ''
         if room_copy['stories'] and room_copy.get('current_story') is not None:
             story = room_copy['stories'][room_copy['current_story']]
             additional = story.get('additional', '')
             victory_condition = story.get('victory_condition', '')
+            answer = story.get('answer', '')
             if PRESET and PRESET.strip():
                 preset = PRESET + '\n' + CUSTOM_STORY_RESTORE_GUIDE
             else:
-                preset = f"你现在是海龟汤推理游戏的主持人。当前题目如下：\n\n汤面：{story.get('surface', '')}\n\n游戏规则：出题者先给出不完整的'汤面'（题目），让猜题者提出各种可能性的问题，而出题者只能回答'是'、'不是'或'不重要'。猜题者在有限的线索中推理出事件的始末，拼出故事的全貌，凑出一个'汤底'（答案）。你只需根据规则回答问题，不要直接给出答案。同时会给出胜利条件，由你来决定是否过关。\n\n补充说明（仅供AI参考）：{additional}\n\n胜利条件：{victory_condition}\n" + CUSTOM_STORY_RESTORE_GUIDE
+                preset = f"你现在是海龟汤推理游戏的主持人。以下是完整汤底（答案），你需要根据汤底回答玩家的问题，但绝对不能主动透露汤底。\n\n汤面（玩家看到的谜题）：{story.get('surface', '')}\n\n汤底（完整真相，仅供你参考，绝对保密）：{answer}\n\n补充说明（仅供AI参考）：{additional}\n\n胜利条件：{victory_condition}\n\n" + CUSTOM_STORY_RESTORE_GUIDE
         else:
             preset = (PRESET + '\n' + CUSTOM_STORY_RESTORE_GUIDE) if PRESET and PRESET.strip() else "当前房间还没有上传题目，请房主上传海龟汤题目（json文件）。"
-        # 构建多轮对话消息
-        messages = [
-            {'role': 'system', 'content': preset}
-        ]
-
-        # 使用AI上下文历史（用于保持多轮对话连续性）
+        messages = [{'role': 'system', 'content': preset}]
         messages.extend(ai_context_copy)
-
-        # 添加当前用户消息
         messages.append({'role': 'user', 'content': f"{nickname}: {content}"})
         try:
             client = OpenAI(base_url=room_copy['base_url'], api_key=room_copy['api_key'])
-            completion = client.chat.completions.create(
-                model=room_copy['model'],
-                messages=messages
-            )
+            completion = client.chat.completions.create(model=room_copy['model'], messages=messages)
             reply = completion.choices[0].message.content
         except Exception as e:
             reply = f'[AI错误]{str(e)}'
@@ -258,40 +270,40 @@ def send_message():
         with rooms_lock:
             room = rooms.get(code)
             if not room:
-                return {'error': '房间不存在'}
+                ai_reply_holder['error'] = '房间不存在'
+                return
             room['messages'].append({'role': 'assistant', 'content': reply, 'nickname': 'AI'})
-
-            # 更新AI上下文历史，保持多轮对话
             if 'ai_context' not in room:
                 room['ai_context'] = []
-
-            # 添加用户消息和AI回复到上下文（限制历史长度）
             room['ai_context'].append({'role': 'user', 'content': f"{nickname}: {content}"})
             room['ai_context'].append({'role': 'assistant', 'content': reply})
-
-            # 限制上下文长度，保留最近的20轮对话（40条消息）
             if len(room['ai_context']) > 40:
                 room['ai_context'] = room['ai_context'][-40:]
-
             if '故事还原正确' in reply or '故事还原大致正确' in reply:
                 popup = '恭喜过关'
                 room['passed'] = True
-        return {'reply': reply, 'popup': popup}
-    future = ai_executor.submit(ai_task)
-    ai_tasks[msg_id] = future
+        ai_reply_holder['reply'] = reply
+        ai_reply_holder['popup'] = popup
+    eventlet.spawn(ai_task)
+    ai_tasks_http[msg_id] = ai_reply_holder
     return jsonify({'msg_id': msg_id, 'status': 'pending'})
 
 @app.route('/api/get_ai_reply', methods=['POST'])
 def get_ai_reply():
+    """保留 HTTP 接口作为降级方案"""
     data = request.json
     msg_id = data.get('msg_id')
-    if not msg_id or msg_id not in ai_tasks:
+    if not msg_id or msg_id not in ai_tasks_http:
         return jsonify({'error': '无效的消息ID'}), 400
-    future = ai_tasks[msg_id]
-    if future.done():
-        result = future.result()
-        del ai_tasks[msg_id]
+    holder = ai_tasks_http[msg_id]
+    if 'reply' in holder:
+        result = {'reply': holder['reply'], 'popup': holder.get('popup')}
+        del ai_tasks_http[msg_id]
         return jsonify(result)
+    elif 'error' in holder:
+        error_msg = holder['error']
+        del ai_tasks_http[msg_id]
+        return jsonify({'error': error_msg})
     else:
         return jsonify({'status': 'pending'})
 
@@ -442,6 +454,8 @@ def reveal_answer():
         # 插入系统消息
         story = room['stories'][room['current_story']]
         room['messages'].append({'role': 'system', 'content': f"房主已揭晓答案：{story.get('answer', '')}", 'nickname': '系统'})
+    # 通知所有房间成员刷新题目面板
+    socketio.emit('story_update', {}, room=code)
     return jsonify({'success': True})
 
 @app.route('/story_plaza')
@@ -871,7 +885,7 @@ def admin_panel():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+        if username == ADMIN_USERNAME and (hash_password(password) == ADMIN_PASSWORD_HASH or password == ADMIN_PASSWORD_HASH):
             session['admin_logged_in'] = True
             return redirect('/admin')
         else:
@@ -904,7 +918,28 @@ def admin_delete_room():
 
 @app.route('/api/get_options', methods=['GET'])
 def get_options():
-    """获取下拉选项（模型、代理地址、API Key）"""
+    """获取下拉选项 - 公开接口，不返回 API Keys"""
+    masked_urls = []
+    for u in OPTIONS.get('base_urls', []):
+        try:
+            from urllib.parse import urlparse
+            p = urlparse(u)
+            masked_urls.append(p.hostname or u[:12] + '***')
+        except Exception:
+            masked_urls.append(u[:10] + '***')
+    return jsonify({
+        'options': {
+            'models': OPTIONS.get('models', []),
+            'base_urls': OPTIONS.get('base_urls', []),
+            'base_urls_masked': masked_urls
+        }
+    })
+
+@app.route('/api/get_admin_options', methods=['GET'])
+def get_admin_options():
+    """获取完整配置（管理员专用，包含 API Keys）"""
+    if not session.get('admin_logged_in'):
+        return jsonify({'error': '未登录'}), 403
     return jsonify({'options': OPTIONS})
 
 @app.route('/api/save_options', methods=['POST'])
@@ -953,24 +988,266 @@ def update_announcements():
     save_announcements(ANNOUNCEMENTS)
     return jsonify({'success': True})
 
+# ==================== Socket.IO 事件处理 ====================
+
+@socketio.on('connect')
+def handle_connect():
+    pass
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    with socket_users_lock:
+        user_info = socket_users.pop(request.sid, None)
+    if user_info:
+        code = user_info['room_code']
+        nickname = user_info['nickname']
+        leave_room(code)
+        with rooms_lock:
+            room = rooms.get(code)
+            if room and 'online_users' in room:
+                room['online_users'].pop(nickname, None)
+        _emit_online_users(code)
+
+@socketio.on('join')
+def handle_join(data):
+    code = data.get('code', '').strip().upper()
+    nickname = data.get('nickname', '').strip()
+    if not code or not nickname:
+        emit('error', {'message': '参数不完整'})
+        return
+    with rooms_lock:
+        room = rooms.get(code)
+        if not room:
+            emit('error', {'message': '房间不存在'})
+            return
+        if nickname not in room['members']:
+            emit('error', {'message': '未加入房间'})
+            return
+        if 'online_users' not in room:
+            room['online_users'] = {}
+    # 记录 sid 映射
+    with socket_users_lock:
+        # 清理旧连接
+        for sid, info in list(socket_users.items()):
+            if info['room_code'] == code and info['nickname'] == nickname:
+                del socket_users[sid]
+        socket_users[request.sid] = {'room_code': code, 'nickname': nickname}
+    join_room(code)
+    # 更新在线
+    with rooms_lock:
+        room = rooms.get(code)
+        if room:
+            room['online_users'][nickname] = time.time()
+    _emit_online_users(code)
+    # 发送初始消息
+    with rooms_lock:
+        room = rooms.get(code)
+        if room:
+            emit('initial_state', {
+                'messages': room.get('messages', []),
+                'chat_messages': room.get('chat_messages', []),
+                'owner': room['owner'],
+                'model': room['model']
+            })
+
+@socketio.on('send_ai_message')
+def handle_send_ai_message(data):
+    with socket_users_lock:
+        user_info = socket_users.get(request.sid)
+    if not user_info:
+        emit('error', {'message': '请先加入房间'})
+        return
+    code = user_info['room_code']
+    nickname = user_info['nickname']
+    content = (data.get('content') or '').strip()
+    if not content:
+        return
+    # 写入用户消息并广播
+    with rooms_lock:
+        room = rooms.get(code)
+        if not room:
+            emit('error', {'message': '房间不存在'})
+            return
+        room['messages'].append({'role': 'user', 'content': content, 'nickname': nickname})
+        room_copy = {
+            'base_url': room['base_url'],
+            'api_key': room['api_key'],
+            'model': room['model'],
+            'stories': room.get('stories'),
+            'current_story': room.get('current_story'),
+        }
+        messages_copy = list(room['messages'])
+        ai_context_copy = list(room.get('ai_context', []))
+    # 广播用户消息
+    socketio.emit('user_message', {'role': 'user', 'content': content, 'nickname': nickname}, room=code)
+    # 异步调用 AI
+    def ai_task():
+        preset = ''
+        if room_copy['stories'] and room_copy.get('current_story') is not None:
+            story = room_copy['stories'][room_copy['current_story']]
+            additional = story.get('additional', '')
+            victory_condition = story.get('victory_condition', '')
+            answer = story.get('answer', '')
+            if PRESET and PRESET.strip():
+                preset = PRESET + '\n' + CUSTOM_STORY_RESTORE_GUIDE
+            else:
+                preset = f"你现在是海龟汤推理游戏的主持人。以下是完整汤底（答案），你需要根据汤底回答玩家的问题，但绝对不能主动透露汤底。\n\n汤面（玩家看到的谜题）：{story.get('surface', '')}\n\n汤底（完整真相，仅供你参考，绝对保密）：{answer}\n\n补充说明（仅供AI参考）：{additional}\n\n胜利条件：{victory_condition}\n\n" + CUSTOM_STORY_RESTORE_GUIDE
+        else:
+            preset = (PRESET + '\n' + CUSTOM_STORY_RESTORE_GUIDE) if PRESET and PRESET.strip() else "当前房间还没有上传题目，请房主上传海龟汤题目（json文件）。"
+        messages = [{'role': 'system', 'content': preset}]
+        messages.extend(ai_context_copy)
+        messages.append({'role': 'user', 'content': f"{nickname}: {content}"})
+        try:
+            client = OpenAI(base_url=room_copy['base_url'], api_key=room_copy['api_key'])
+            completion = client.chat.completions.create(
+                model=room_copy['model'],
+                messages=messages
+            )
+            reply = completion.choices[0].message.content
+        except Exception as e:
+            reply = f'[AI错误]{str(e)}'
+        popup = None
+        with rooms_lock:
+            room = rooms.get(code)
+            if not room:
+                return
+            room['messages'].append({'role': 'assistant', 'content': reply, 'nickname': 'AI'})
+            if 'ai_context' not in room:
+                room['ai_context'] = []
+            room['ai_context'].append({'role': 'user', 'content': f"{nickname}: {content}"})
+            room['ai_context'].append({'role': 'assistant', 'content': reply})
+            if len(room['ai_context']) > 40:
+                room['ai_context'] = room['ai_context'][-40:]
+            if '故事还原正确' in reply or '故事还原大致正确' in reply:
+                popup = '恭喜过关'
+                room['passed'] = True
+        socketio.emit('ai_reply', {'role': 'assistant', 'content': reply, 'nickname': 'AI'}, room=code)
+        if popup:
+            socketio.emit('pass', {'message': popup}, room=code)
+    eventlet.spawn(ai_task)
+
+@socketio.on('send_chat_message')
+def handle_send_chat_message(data):
+    with socket_users_lock:
+        user_info = socket_users.get(request.sid)
+    if not user_info:
+        emit('error', {'message': '请先加入房间'})
+        return
+    code = user_info['room_code']
+    nickname = user_info['nickname']
+    content = (data.get('content') or '').strip()
+    if not content:
+        return
+    with rooms_lock:
+        room = rooms.get(code)
+        if not room:
+            emit('error', {'message': '房间不存在'})
+            return
+        if 'chat_messages' not in room:
+            room['chat_messages'] = []
+        room['chat_messages'].append({'nickname': nickname, 'content': content, 'time': int(time.time())})
+        if len(room['chat_messages']) > 100:
+            room['chat_messages'] = room['chat_messages'][-100:]
+    socketio.emit('chat_message', {'nickname': nickname, 'content': content}, room=code)
+
+@socketio.on('restore_story')
+def handle_restore_story(data):
+    with socket_users_lock:
+        user_info = socket_users.get(request.sid)
+    if not user_info:
+        emit('error', {'message': '请先加入房间'})
+        return
+    code = user_info['room_code']
+    nickname = user_info['nickname']
+    content = (data.get('content') or '').strip()
+    if not content:
+        return
+    with rooms_lock:
+        room = rooms.get(code)
+        if not room:
+            emit('error', {'message': '房间不存在'})
+            return
+        if not room.get('stories') or room.get('current_story') is None:
+            emit('error', {'message': '当前房间没有题目'})
+            return
+        story = room['stories'][room['current_story']]
+        answer = story.get('answer', '')
+        victory_condition = story.get('victory_condition', '')
+        room['messages'].append({'role': 'user', 'content': '【故事还原】' + content, 'nickname': nickname})
+        room_copy = {
+            'base_url': room['base_url'],
+            'api_key': room['api_key'],
+            'model': room['model'],
+            'answer': answer,
+            'victory_condition': victory_condition,
+        }
+    socketio.emit('user_message', {'role': 'user', 'content': '【故事还原】' + nickname + ' 提交了故事还原', 'nickname': '系统'}, room=code)
+    def restore_task():
+        restore_prompt = f"玩家正在进行故事还原。以下是完整汤底：\n\n{room_copy['answer']}\n\n胜利条件：{room_copy['victory_condition']}\n\n玩家还原的内容为：\n{content}\n\n请根据汤底和胜利条件进行判断。判断标准：不需要完全一字不差，只要玩家还原的故事涵盖了胜利条件中要求的核心要点和大致意思即可。如果完全偏离或遗漏核心要点回复'故事还原错误'，如果涵盖核心要点和大致意思回复'故事还原正确'，如果覆盖大部分但有少量偏差回复'故事还原大致正确'。只回复这三个标签之一，不能有其他内容。"
+        try:
+            client = OpenAI(base_url=room_copy['base_url'], api_key=room_copy['api_key'])
+            completion = client.chat.completions.create(
+                model=room_copy['model'],
+                messages=[{'role': 'user', 'content': restore_prompt}]
+            )
+            reply = completion.choices[0].message.content
+        except Exception as e:
+            reply = f'[AI错误]{str(e)}'
+        with rooms_lock:
+            room = rooms.get(code)
+            if not room:
+                return
+            room['messages'].append({'role': 'assistant', 'content': reply, 'nickname': 'AI'})
+            if '故事还原正确' in reply or '故事还原大致正确' in reply:
+                room['passed'] = True
+        socketio.emit('ai_reply', {'role': 'assistant', 'content': reply, 'nickname': 'AI'}, room=code)
+        if '故事还原正确' in reply or '故事还原大致正确' in reply:
+            socketio.emit('pass', {'message': '恭喜过关'}, room=code)
+    eventlet.spawn(restore_task)
+
+@socketio.on('heartbeat')
+def handle_heartbeat():
+    with socket_users_lock:
+        user_info = socket_users.get(request.sid)
+    if user_info:
+        code = user_info['room_code']
+        nickname = user_info['nickname']
+        with rooms_lock:
+            room = rooms.get(code)
+            if room and 'online_users' in room:
+                room['online_users'][nickname] = time.time()
+
+def _emit_online_users(code):
+    now = time.time()
+    with rooms_lock:
+        room = rooms.get(code)
+        if room and 'online_users' in room:
+            users = [u for u, t in room['online_users'].items() if now - t < 60]
+        else:
+            users = []
+    socketio.emit('online_users_update', {'users': users}, room=code)
+
+# ==================== 启动 ====================
+
 if __name__ == '__main__':
-    # 每天凌晨3点清空所有房间
     def daily_cleanup_task():
         while True:
             now = datetime.datetime.now()
-            # 计算下一次凌晨3点
             next_run = (now + datetime.timedelta(days=1)).replace(hour=3, minute=0, second=0, microsecond=0)
-            # 若当前已过3点，则从明天的3点开始
             if now.hour < 3:
                 next_run = now.replace(hour=3, minute=0, second=0, microsecond=0)
             sleep_seconds = (next_run - now).total_seconds()
             time.sleep(max(1, int(sleep_seconds)))
             try:
                 with rooms_lock:
+                    for code in list(rooms.keys()):
+                        socketio.emit('room_closed', {'message': '房间已关闭'}, room=code)
                     rooms.clear()
+                with socket_users_lock:
+                    socket_users.clear()
                 print('[定时任务] 已在凌晨3点清空所有房间')
             except Exception as e:
                 print(f'[定时任务] 清理失败: {e}')
 
-    threading.Thread(target=daily_cleanup_task, daemon=True).start()
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    eventlet.spawn(daily_cleanup_task)
+    socketio.run(app, host='0.0.0.0', port=5011, debug=False)

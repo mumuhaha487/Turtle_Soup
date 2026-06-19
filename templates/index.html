@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <style>
         /* Specific overrides for SPA sections */
         .chat-layout {
@@ -19,9 +20,79 @@
             .chat-layout {
                 grid-template-columns: 1fr;
                 height: auto;
+                gap: 0.75rem;
             }
             .chat-container {
-                height: 500px;
+                height: 65dvh;
+                min-height: 380px;
+            }
+            .chat-messages {
+                padding: 0.75rem;
+            }
+            .chat-input-area {
+                padding: 0.6rem;
+                gap: 0.35rem;
+                flex-wrap: nowrap;
+                align-items: center;
+            }
+            .chat-input-area textarea {
+                font-size: 15px !important;
+                padding: 0.5rem !important;
+                min-height: 38px !important;
+            }
+            .chat-input-area .btn {
+                padding: 0.45rem 0.65rem !important;
+                font-size: 0.85rem !important;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+            .chat-input-area .btn .iconify {
+                font-size: 1rem !important;
+            }
+            .bubble {
+                max-width: 90% !important;
+                padding: 0.65rem 0.8rem !important;
+                font-size: 0.9rem;
+            }
+            .msg-nickname {
+                font-size: 0.7rem !important;
+            }
+            #restore-story-btn {
+                padding: 0.45rem 0.55rem !important;
+            }
+            /* 移动端侧边栏默认折叠，只显示切换按钮 */
+            .mobile-sidebar-toggle {
+                display: flex !important;
+            }
+            .mobile-sidebar-inner {
+                display: none;
+            }
+            .mobile-sidebar-inner.open {
+                display: flex;
+            }
+            .user-list-panel {
+                padding: 0.6rem;
+                font-size: 0.85rem;
+            }
+            #chat-box-chat {
+                min-height: 80px;
+                max-height: 150px;
+            }
+            .container {
+                padding: 0.75rem;
+            }
+            header {
+                padding: 0.75rem 0;
+                margin-bottom: 1rem;
+            }
+            h1 { font-size: 1.8rem; }
+            .card { padding: 1.2rem; }
+            #current-story {
+                padding: 0.6rem !important;
+                font-size: 0.85rem;
+            }
+            #room-info-text {
+                font-size: 0.75rem !important;
             }
         }
 
@@ -141,6 +212,15 @@
 
         <!-- PAGE: HOME -->
         <div id="page-home" class="page-section" style="display: block;">
+            <div id="announcement-banner" style="background: #fffbe6; border: 1px solid #fde68a; border-radius: 10px; padding: 10px 16px; margin-bottom: 1.5rem; display: none; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="display: flex; align-items: flex-start; gap: 8px;">
+                        <span class="iconify" data-icon="lucide:megaphone" style="color: #d97706; font-size: 1.2rem; flex-shrink: 0; margin-top: 1px;"></span>
+                        <div id="announcement-text" style="font-size: 0.95rem; color: #92400e; line-height: 1.6; white-space: pre-wrap;"></div>
+                    </div>
+                    <button onclick="document.getElementById('announcement-banner').style.display='none'" style="background: none; border: none; cursor: pointer; font-size: 1.2rem; color: #92400e; padding: 0 4px; line-height: 1;">×</button>
+                </div>
+            </div>
             <div class="hero-wrapper">
                 <div style="flex: 1;">
                     <h1 style="font-size: 3rem; margin-bottom: 1.5rem;">
@@ -187,25 +267,39 @@
                 
                 <details style="margin-bottom: 1.5rem;">
                     <summary style="cursor: pointer; color: var(--color-text-secondary); margin-bottom: 1rem;">高级 API 设置</summary>
-                    <div class="form-group">
-                        <label>代理地址 (Base URL)</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <select id="create-base-url-select" style="width: 50%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: var(--radius-sm);"></select>
-                            <input type="text" id="create-base-url" placeholder="自定义..." style="flex: 1;">
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                            <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                <input type="radio" name="api-mode" value="default" checked onchange="toggleApiMode()">
+                                <span>默认配置（推荐）</span>
+                            </span>
+                            <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                <input type="radio" name="api-mode" value="custom" onchange="toggleApiMode()">
+                                <span>自定义配置</span>
+                            </span>
+                        </label>
+                        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">默认模式：使用服务器预设的 API，只需选择模型</div>
+                    </div>
+                    <div id="api-default-group">
+                        <div class="form-group">
+                            <label>模型</label>
+                            <select id="create-model-select" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: var(--radius-sm);">
+                                <option value="">请选择模型</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>API Key</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <select id="create-api-key-select" style="width: 50%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: var(--radius-sm);"></select>
-                            <input type="password" id="create-api-key" placeholder="自定义..." style="flex: 1;">
+                    <div id="api-custom-group" style="display: none;">
+                        <div class="form-group">
+                            <label>代理地址 (Base URL)</label>
+                            <input type="password" id="create-base-url" placeholder="例如：https://api.example.com/v1" style="width: 100%;">
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label>模型</label>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <select id="create-model-select" style="width: 50%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: var(--radius-sm);"></select>
-                            <input type="text" id="create-model" placeholder="自定义..." style="flex: 1;">
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input type="password" id="create-api-key" placeholder="sk-..." style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>模型</label>
+                            <input type="text" id="create-model" placeholder="例如：gpt-4o" style="width: 100%;">
                         </div>
                     </div>
                 </details>
@@ -272,6 +366,9 @@
                         </div>
                         <div class="chat-input-area">
                             <textarea id="user-input" rows="1" placeholder="输入你的问题 (支持 Enter 发送)..." style="flex: 1; resize: none;"></textarea>
+                            <button class="btn btn-secondary" id="restore-story-btn" title="故事还原" style="padding: 0.5rem 0.8rem;">
+                                <span class="iconify" data-icon="lucide:book-open-check"></span>
+                            </button>
                             <button class="btn" id="send-btn">
                                 <span class="iconify" data-icon="lucide:send"></span>
                             </button>
@@ -280,7 +377,12 @@
                 </div>
 
                 <!-- Right: Sidebar -->
-                <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%;">
+                <div style="display: flex; flex-direction: column; gap: 1rem; height: 100%;" class="mobile-sidebar">
+                    <!-- Mobile Toggle Button -->
+                    <button class="btn btn-secondary mobile-sidebar-toggle" style="display: none; width: 100%; justify-content: center; font-size: 0.85rem; padding: 0.5rem;" onclick="toggleMobileSidebar()">
+                        <span class="iconify" data-icon="lucide:chevrons-left"></span> 展开侧栏
+                    </button>
+                    <div class="mobile-sidebar-inner" style="display: flex; flex-direction: column; gap: 1rem; height: 100%;">
                     <!-- User List -->
                     <div class="user-list-panel" style="flex: 0 0 auto; max-height: 200px;">
                         <h4 style="margin-top: 0; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -305,12 +407,10 @@
                                     <span class="iconify" data-icon="lucide:upload"></span> 上传题目
                                 </button>
                                 <input type="file" id="upload-story-file" accept=".json" style="display: none;" onchange="handleUploadStory(this)">
-                                
                                 <button class="btn btn-secondary" style="width: 100%; text-align: left; font-size: 0.9rem; margin-top: 0.5rem;" onclick="showPlazaStorySelector()">
                                     <span class="iconify" data-icon="lucide:library"></span> 从广场选择
                                 </button>
                              </div>
-                             
                              <button class="btn delete-btn" id="delete-room-btn" style="width: 100%; background: #fee2e2; color: #b91c1c; border: none; display: none;">
                                 <span class="iconify" data-icon="lucide:trash-2"></span> 删除房间
                              </button>
@@ -329,10 +429,27 @@
                         </div>
                     </div>
                 </div>
+                </div>
             </div>
         </div>
     </div>
     
+    <!-- 故事还原弹窗 -->
+    <div id="restore-modal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.45); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div style="background:#fff; border-radius:16px; box-shadow:0 20px 60px rgba(2,6,23,.18); padding:20px; width:92vw; max-width:500px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="margin:0; font-size:18px;">故事还原</h3>
+                <button onclick="closeRestoreModal()" style="border:none; background:none; cursor:pointer; font-size:22px; color:#64748b;">×</button>
+            </div>
+            <div style="font-size:13px; color:#64748b; margin-bottom:10px;">请输入你对整个故事真相的推测，AI 将根据胜利条件进行判断。</div>
+            <textarea id="restore-input" rows="6" placeholder="请输入你还原的故事内容..." style="width:100%; padding:10px; border:1px solid #e5e7eb; border-radius:8px; font-size:14px; resize:vertical; box-sizing:border-box;"></textarea>
+            <div style="display:flex; gap:10px; margin-top:12px; justify-content:flex-end;">
+                <button class="btn btn-secondary" onclick="closeRestoreModal()">取消</button>
+                <button class="btn" id="restore-submit-btn">提交还原</button>
+            </div>
+        </div>
+    </div>
+
     <div style="text-align: center; padding: 2rem 0; color: #9ca3af; font-size: 0.9rem;">
         <a href="https://github.com/mumuhaha487/Turtle_Soup" target="_blank" style="color: inherit; text-decoration: none;">Turtle_Soup</a> 由 mumuhaha 构建 | <a href="https://beian.miit.gov.cn/" target="_blank" style="color: inherit; text-decoration: none;">赣ICP备2024038464号</a>
     </div>
@@ -351,12 +468,12 @@
                 const res = await fetch('/api/upload_story', {method: 'POST', body: formData});
                 const data = await res.json();
                 if (data.success) {
-                    alert('上传成功');
+                    (window.uiToast ? window.uiToast('上传成功','success') : alert('上传成功'));
                     fetchCurrentStory(); // from main.js
                 } else {
-                    alert(data.error || '上传失败');
+                    (window.uiAlert ? window.uiAlert(data.error || '上传失败','上传失败') : alert(data.error || '上传失败'));
                 }
-            } catch(e) { alert('网络错误'); }
+            } catch(e) { (window.uiAlert ? window.uiAlert('网络错误','错误') : alert('网络错误')); }
             input.value = '';
         }
     </script>

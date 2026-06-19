@@ -1,6 +1,6 @@
 flask
 flask_cors
+flask-socketio
+eventlet
 openai
 python-dotenv
-# concurrent.futures为Python3标准库，无需单独安装，若为py2需pip install futures
-# uuid为Python标准库，无需单独安装

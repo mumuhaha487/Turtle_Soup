@@ -261,19 +261,40 @@
                 
                 <details>
                     <summary style="cursor: pointer; color: var(--color-text-secondary); margin-bottom: 1rem;">API 设置 (默认已配置)</summary>
-                    <div class="form-group">
-                        <label>Base URL</label>
-                        <input type="text" id="start-base-url" placeholder="默认">
+                    <div style="margin-bottom: 1rem;">
+                        <label style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                            <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                <input type="radio" name="start-api-mode" value="default" checked onchange="toggleStartApiMode()">
+                                <span>默认配置（推荐）</span>
+                            </span>
+                            <span style="display: flex; align-items: center; gap: 0.35rem;">
+                                <input type="radio" name="start-api-mode" value="custom" onchange="toggleStartApiMode()">
+                                <span>自定义配置</span>
+                            </span>
+                        </label>
+                        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">默认模式：使用服务器预设的 API，只需选择模型</div>
                     </div>
-                    <div class="form-group">
-                        <label>API Key</label>
-                        <input type="password" id="start-api-key" placeholder="默认">
+                    <div id="start-api-default-group">
+                        <div class="form-group">
+                            <label>模型</label>
+                            <select id="start-model-select" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: var(--radius-sm);">
+                                <option value="">请选择模型</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>模型</label>
-                        <select id="start-model-select" style="width: 100%;">
-                            <option value="gpt-4o">gpt-4o</option>
-                        </select>
+                    <div id="start-api-custom-group" style="display: none;">
+                        <div class="form-group">
+                            <label>代理地址 (Base URL)</label>
+                            <input type="password" id="start-base-url" placeholder="https://api.example.com/v1" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>API Key</label>
+                            <input type="password" id="start-api-key" placeholder="sk-..." style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>模型</label>
+                            <input type="text" id="start-model-custom" placeholder="gpt-4o" style="width: 100%;">
+                        </div>
                     </div>
                 </details>
 
@@ -293,6 +314,36 @@
             
             document.querySelector(`button[onclick="switchTab('${tabId}')"]`).classList.add('active');
             document.getElementById(tabId).classList.add('active');
+        }
+
+        // UI helpers to replace alert/confirm
+        function modalAlert(message, title='提示') {
+            return new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.style = 'position:fixed;inset:0;background:rgba(15,23,42,0.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);';
+                const panel = document.createElement('div');
+                panel.style = 'width:92vw;max-width:420px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(2,6,23,.18);padding:20px 20px 16px 20px;color:#0f172a;';
+                panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-weight:700;font-size:18px;">${title}</div><button id="m-x" style="border:none;background:none;cursor:pointer;font-size:22px;color:#64748b;">×</button></div><div style="font-size:14px;color:#334155;line-height:1.7;white-space:pre-wrap;margin:8px 0 16px 0;">${message}</div><div style="display:flex;justify-content:flex-end;"><button id="m-ok" class="btn" style="justify-content:center;">知道了</button></div>`;
+                overlay.appendChild(panel);
+                overlay.querySelector('#m-x').onclick = ()=>{document.body.removeChild(overlay);resolve();};
+                overlay.querySelector('#m-ok').onclick = ()=>{document.body.removeChild(overlay);resolve();};
+                document.body.appendChild(overlay);
+            });
+        }
+        function modalConfirm(message, title='确认') {
+            return new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.style = 'position:fixed;inset:0;background:rgba(15,23,42,0.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);';
+                const panel = document.createElement('div');
+                panel.style = 'width:92vw;max-width:420px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(2,6,23,.18);padding:20px 20px 16px 20px;color:#0f172a;';
+                panel.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><div style="font-weight:700;font-size:18px;">${title}</div><button id="c-x" style="border:none;background:none;cursor:pointer;font-size:22px;color:#64748b;">×</button></div><div style="font-size:14px;color:#334155;line-height:1.7;white-space:pre-wrap;margin:8px 0 16px 0;">${message}</div><div style="display:flex;gap:10px;justify-content:flex-end;"><button id=\"c-cancel\" class=\"btn btn-secondary\">取消</button><button id=\"c-ok\" class=\"btn\">确定</button></div>`;
+                overlay.appendChild(panel);
+                const close = (v)=>{document.body.removeChild(overlay);resolve(v);};
+                overlay.querySelector('#c-x').onclick = ()=>close(false);
+                overlay.querySelector('#c-cancel').onclick = ()=>close(false);
+                overlay.querySelector('#c-ok').onclick = ()=>close(true);
+                document.body.appendChild(overlay);
+            });
         }
 
         // Global State
@@ -401,9 +452,9 @@
 
         // Edit Load
         document.getElementById('edit-story-btn').onclick = async () => {
-            if (!selectedStoryId) return alert('请先选择故事');
+            if (!selectedStoryId) return modalAlert('请先选择故事');
             const password = document.getElementById('edit-story-password').value;
-            if (!password) return alert('请输入密码');
+            if (!password) return modalAlert('请输入密码');
             
             try {
                 const res = await fetch('/api/get_story_for_edit', {
@@ -421,9 +472,9 @@
                     document.getElementById('edit-form').style.display = 'block';
                     document.getElementById('edit-story-result').innerHTML = '';
                 } else {
-                    alert(data.error || '加载失败');
+                    modalAlert(data.error || '加载失败');
                 }
-            } catch(e) { alert('网络错误'); }
+            } catch(e) { modalAlert('网络错误'); }
         };
 
         // Edit Submit
@@ -444,12 +495,12 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('修改成功');
+                    modalAlert('修改成功');
                     loadStories();
                 } else {
-                    alert(data.error || '修改失败');
+                    modalAlert(data.error || '修改失败');
                 }
-            } catch(e) { alert('网络错误'); }
+            } catch(e) { modalAlert('网络错误'); }
         };
 
         // Upload Form
@@ -464,14 +515,14 @@
                 const res = await fetch('/api/upload_to_plaza', {method: 'POST', body: formData});
                 const data = await res.json();
                 if (data.success) {
-                    alert('上传成功');
+                    modalAlert('上传成功');
                     document.getElementById('upload-form').reset();
                     loadStories();
                     switchTab('browse');
                 } else {
-                    alert(data.error || '上传失败');
+                    modalAlert(data.error || '上传失败');
                 }
-            } catch(e) { alert('网络错误'); }
+            } catch(e) { modalAlert('网络错误'); }
         };
 
         // Online Form
@@ -493,14 +544,14 @@
                 });
                 const data = await res.json();
                 if (data.success) {
-                    alert('发布成功');
+                    modalAlert('发布成功');
                     document.getElementById('online-form').reset();
                     loadStories();
                     switchTab('browse');
                 } else {
-                    alert(data.error || '发布失败');
+                    modalAlert(data.error || '发布失败');
                 }
-            } catch(e) { alert('网络错误'); }
+            } catch(e) { modalAlert('网络错误'); }
         };
 
         // Modal Logic
@@ -514,58 +565,76 @@
             document.getElementById('start-modal').classList.remove('open');
         }
 
+        let __plazaDefaults = { models: [], base_urls: [] };
+
+        function toggleStartApiMode() {
+            const isDefault = document.querySelector('input[name="start-api-mode"]:checked').value === 'default';
+            document.getElementById('start-api-default-group').style.display = isDefault ? '' : 'none';
+            document.getElementById('start-api-custom-group').style.display = isDefault ? 'none' : '';
+        }
+
         async function initPlazaOptions() {
             try {
                 const resp = await fetch('/api/get_options');
                 const data = await resp.json();
-                const select = document.getElementById('start-model-select');
-                if (data.options && data.options.models) {
-                    select.innerHTML = data.options.models.map(m => `<option value="${m}">${m}</option>`).join('');
+                const opt = data.options || {};
+                __plazaDefaults = { models: opt.models || [], base_urls: opt.base_urls || [] };
+
+                const modelEl = document.getElementById('start-model-select');
+                if (modelEl) {
+                    modelEl.innerHTML = '<option value="">请选择模型</option>';
+                    (opt.models || []).forEach(v => {
+                        const o = document.createElement('option');
+                        o.value = v;
+                        o.textContent = v;
+                        modelEl.appendChild(o);
+                    });
+                    if (opt.models && opt.models.length) modelEl.value = opt.models[0];
                 }
             } catch(e) {}
         }
 
         document.getElementById('start-form').onsubmit = async (e) => {
             e.preventDefault();
-            const nickname = document.getElementById('start-nickname').value;
-            // Use defaults if empty, logic similar to original but simplified for UX
-            // Here assuming backend handles defaults or we pass empty if not provided?
-            // Original code used dropdowns OR inputs.
-            // Simplified: Just use input values, or defaults if implemented in backend/frontend.
-            // For now, let's keep it simple:
-            const baseUrl = document.getElementById('start-base-url').value || 'http://api.0ha.top/v1'; 
-            const apiKey = document.getElementById('start-api-key').value; // if empty, maybe backend fails?
-            const model = document.getElementById('start-model-select').value;
-            
-            if (!nickname) return alert('请输入昵称');
+            const nickname = document.getElementById('start-nickname').value.trim();
+            if (!nickname) return modalAlert('请输入昵称');
+
+            const isDefault = document.querySelector('input[name="start-api-mode"]:checked').value === 'default';
+            let createBody;
+            if (isDefault) {
+                const model = document.getElementById('start-model-select').value;
+                if (!model) return modalAlert('请选择模型');
+                if (!__plazaDefaults.models.length) return modalAlert('服务器未配置模型，请使用自定义模式');
+                createBody = JSON.stringify({nickname, use_default: true, model});
+            } else {
+                const baseUrl = document.getElementById('start-base-url').value.trim();
+                const apiKey = document.getElementById('start-api-key').value.trim();
+                const model = document.getElementById('start-model-custom').value.trim();
+                if (!baseUrl || !apiKey || !model) return modalAlert('请填写完整的 API 配置');
+                createBody = JSON.stringify({nickname, use_default: false, base_url: baseUrl, api_key: apiKey, model});
+            }
 
             try {
-                // 1. Create Room
                 const res = await fetch('/api/create_room', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({nickname, base_url: baseUrl, api_key: apiKey || 'sk-xxx', model}) // Placeholder key if empty
+                    body: createBody
                 });
                 const data = await res.json();
-                if (!data.room_code) throw new Error(data.error || '创建房间失败');
+                const roomCode = data.code;
+                if (!roomCode) throw new Error(data.error || '创建房间失败');
 
-                // 2. Load Story
                 const res2 = await fetch('/api/load_story_from_plaza', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({code: data.room_code, nickname, filename: document.getElementById('start-story-filename').value})
+                    body: JSON.stringify({code: roomCode, nickname, filename: document.getElementById('start-story-filename').value})
                 });
                 const data2 = await res2.json();
                 if (!data2.success) throw new Error(data2.error || '加载故事失败');
 
-                // 3. Redirect
-                localStorage.setItem('haigui_room', JSON.stringify({roomCode: data.room_code, nickname, isOwner: true}));
-                window.location.href = '/'; // Or /room/code? 
-                // Original redirected to / or used localStorage to resume. 
-                // Wait, original said `window.location.href = '/'`. I'll follow that.
-            } catch(err) {
-                alert(err.message);
-            }
+                localStorage.setItem('haigui_room', JSON.stringify({roomCode, nickname, isOwner: true}));
+                window.location.href = '/';
+            } catch(err) { modalAlert(err.message); }
         };
 
         // Init

@@ -150,7 +150,10 @@
                 </div>
                 <div class="form-group">
                     <label>API Keys (每行一个, 可选)</label>
-                    <textarea id="opt-api-keys" rows="6" class="code-editor" placeholder="sk-..."></textarea>
+                    <div style="position: relative;">
+                        <textarea id="opt-api-keys" rows="6" class="code-editor" placeholder="sk-..." style="font-family: monospace; -webkit-text-security: disc;"></textarea>
+                        <button id="toggle-api-keys" type="button" style="position: absolute; top: 4px; right: 4px; padding: 4px 10px; font-size: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; cursor: pointer;" onclick="toggleApiKeysVisibility()">显示</button>
+                    </div>
                 </div>
             </div>
             <button class="btn" onclick="saveOptions()">
@@ -178,21 +181,23 @@
     <script>
         // --- Room Management ---
         function deleteRoom(code) {
-            if (!confirm('确定要强制关闭该房间吗？玩家将被踢出。')) return;
-            fetch('/admin/delete_room', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: 'code=' + encodeURIComponent(code)
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('操作失败：' + (data.error || '未知错误'));
-                }
-            })
-            .catch(() => alert('网络错误'));
+            uiConfirm('确定要强制关闭该房间吗？玩家将被踢出。', '确认操作').then(ok => {
+                if (!ok) return;
+                fetch('/admin/delete_room', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: 'code=' + encodeURIComponent(code)
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        uiAlert('操作失败：' + (data.error || '未知错误'), '错误');
+                    }
+                })
+                .catch(() => uiAlert('网络错误', '错误'));
+            });
         }
 
         // --- Story Management ---
@@ -247,31 +252,47 @@
         document.getElementById('released-refresh').onclick = loadReleasedStories;
 
         function deleteReleased(filename) {
-            if (!confirm('确定要永久删除这个故事吗？')) return;
-            const formData = new FormData();
-            formData.append('filename', filename);
-            fetch('/api/delete_released_story', {
-                method: 'POST',
-                body: formData
-            }).then(r => r.json()).then(d => {
-                if (d.success) {
-                    loadReleasedStories();
-                } else {
-                    alert('删除失败：' + (d.error || '未知错误'));
-                }
-            }).catch(() => alert('网络错误'));
+            uiConfirm('确定要永久删除这个故事吗？', '确认删除').then(ok => {
+                if (!ok) return;
+                const formData = new FormData();
+                formData.append('filename', filename);
+                fetch('/api/delete_released_story', {
+                    method: 'POST',
+                    body: formData
+                }).then(r => r.json()).then(d => {
+                    if (d.success) {
+                        loadReleasedStories();
+                    } else {
+                        uiAlert('删除失败：' + (d.error || '未知错误'), '错误');
+                    }
+                }).catch(() => uiAlert('网络错误', '错误'));
+            });
         }
 
         // --- Options & Announcements ---
         async function loadOptions() {
             try {
-                const resp = await fetch('/api/get_options');
+                const resp = await fetch('/api/get_admin_options');
                 const data = await resp.json();
                 const opt = data.options || {};
                 document.getElementById('opt-models').value = (opt.models || []).join('\n');
                 document.getElementById('opt-base-urls').value = (opt.base_urls || []).join('\n');
                 document.getElementById('opt-api-keys').value = (opt.api_keys || []).join('\n');
+                document.getElementById('opt-api-keys').style.webkitTextSecurity = 'disc';
+                document.getElementById('toggle-api-keys').textContent = '显示';
             } catch (e) {}
+        }
+
+        function toggleApiKeysVisibility() {
+            const ta = document.getElementById('opt-api-keys');
+            const btn = document.getElementById('toggle-api-keys');
+            if (ta.style.webkitTextSecurity === 'disc') {
+                ta.style.webkitTextSecurity = 'none';
+                btn.textContent = '隐藏';
+            } else {
+                ta.style.webkitTextSecurity = 'disc';
+                btn.textContent = '显示';
+            }
         }
 
         async function saveOptions() {
@@ -293,7 +314,7 @@
                 resultSpan.textContent = data.success ? '保存成功' : '保存失败';
                 resultSpan.style.color = data.success ? 'var(--color-primary)' : 'var(--color-danger)';
                 setTimeout(() => resultSpan.textContent = '', 3000);
-            } catch (e) { alert('网络错误'); }
+            } catch (e) { uiAlert('网络错误', '错误'); }
         }
 
         async function loadAnnouncements() {
@@ -316,13 +337,50 @@
                 resultSpan.textContent = data.success ? '发布成功' : '发布失败';
                 resultSpan.style.color = data.success ? 'var(--color-primary)' : 'var(--color-danger)';
                 setTimeout(() => resultSpan.textContent = '', 3000);
-            } catch (e) { alert('网络错误'); }
+            } catch (e) { uiAlert('网络错误', '错误'); }
         }
 
         // Init
         loadReleasedStories();
         loadOptions();
         loadAnnouncements();
+        
+        // Minimal UI helpers for this page
+        function uiModal({title='提示', message='', showCancel=false}) {
+            const overlay = document.createElement('div');
+            overlay.style = 'position:fixed;inset:0;background:rgba(15,23,42,0.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px);';
+            const panel = document.createElement('div');
+            panel.style = 'width:92vw;max-width:420px;background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(2,6,23,.18);padding:20px 20px 16px 20px;color:#0f172a;';
+            panel.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <div style="font-weight:700;font-size:18px;">${title}</div>
+                <button id="ap-x" style="border:none;background:none;cursor:pointer;font-size:22px;color:#64748b;">×</button>
+              </div>
+              <div style="font-size:14px;color:#334155;line-height:1.7;white-space:pre-wrap;margin:8px 0 16px 0;">${message}</div>
+              <div style="display:flex;gap:10px;justify-content:flex-end;">
+                ${showCancel ? '<button id="ap-cancel" class="btn btn-secondary">取消</button>' : ''}
+                <button id="ap-ok" class="btn">确定</button>
+              </div>`;
+            overlay.appendChild(panel);
+            return overlay;
+        }
+        function uiAlert(message, title='提示') {
+            return new Promise(resolve=>{
+                const o = uiModal({title, message, showCancel:false});
+                o.querySelector('#ap-x').onclick = ()=>{o.remove();resolve();};
+                o.querySelector('#ap-ok').onclick = ()=>{o.remove();resolve();};
+                document.body.appendChild(o);
+            });
+        }
+        function uiConfirm(message, title='确认') {
+            return new Promise(resolve=>{
+                const o = uiModal({title, message, showCancel:true});
+                o.querySelector('#ap-x').onclick = ()=>{o.remove();resolve(false);};
+                o.querySelector('#ap-cancel').onclick = ()=>{o.remove();resolve(false);};
+                o.querySelector('#ap-ok').onclick = ()=>{o.remove();resolve(true);};
+                document.body.appendChild(o);
+            });
+        }
     </script>
 </body>
 </html>

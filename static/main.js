@@ -1,4 +1,15 @@
-// 页面切换
+// 移动端侧栏切换
+function toggleMobileSidebar() {
+    var inner = document.querySelector('.mobile-sidebar-inner');
+    var btn = document.querySelector('.mobile-sidebar-toggle');
+    if (!inner.classList.contains('open')) {
+        inner.classList.add('open');
+        btn.innerHTML = '<span class="iconify" data-icon="lucide:chevrons-right"></span> 收起侧栏';
+    } else {
+        inner.classList.remove('open');
+        btn.innerHTML = '<span class="iconify" data-icon="lucide:chevrons-left"></span> 展开侧栏';
+    }
+}
 function showPage(page) {
     document.getElementById('page-home').style.display = page === 'home' ? '' : 'none';
     document.getElementById('page-create').style.display = page === 'create' ? '' : 'none';
@@ -9,39 +20,131 @@ function showPage(page) {
     }
 }
 
+let socket = null;
+
+// API 模式切换（全局函数，供 onchange 调用）
+function toggleApiMode() {
+    const isDefault = document.querySelector('input[name="api-mode"]:checked').value === 'default';
+    document.getElementById('api-default-group').style.display = isDefault ? '' : 'none';
+    document.getElementById('api-custom-group').style.display = isDefault ? 'none' : '';
+}
+
+// 故事还原功能（全局函数，供 HTML onclick 调用）
+function openRestoreModal() {
+    document.getElementById('restore-input').value = '';
+    document.getElementById('restore-modal').style.display = 'flex';
+    document.getElementById('restore-input').focus();
+}
+function closeRestoreModal() {
+    document.getElementById('restore-modal').style.display = 'none';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
 // 全局状态
 let roomCode = '';
 let nickname = '';
 let isOwner = false;
-let polling = null;
 let isUploading = false;
 // 当前题目信息缓存
 let currentStoryInfo = null;
 let isAnswerRevealed = false;
 // ========== 无AI群聊相关 ==========
-let chatPolling = null;
-let onlinePolling = null;
 let sendBtn;
 let createBtn;
 let joinBtn;
+// ===== 站内模态工具，替代原生 alert/confirm =====
+function uiBuildModal({title = '提示', message = '', showCancel = false, confirmText = '确定', cancelText = '取消'}) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45);
+      display: flex; align-items: center; justify-content: center; z-index: 9999;
+      backdrop-filter: blur(4px);
+    `;
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+      width: 92vw; max-width: 420px; background: #fff; border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(2, 6, 23, .18); padding: 20px 20px 16px 20px;
+      color: #0f172a; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      transform: translateY(8px); opacity: 0; transition: all .18s ease-out;
+    `;
+    panel.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px;">
+        <div style="font-weight:700; font-size:18px;">${title}</div>
+        <button id="ui-close" style="border:none;background:none;cursor:pointer;font-size:22px;line-height:1;color:#64748b;">×</button>
+      </div>
+      <div style="font-size:14px; color:#334155; line-height:1.7; white-space:pre-wrap; margin: 8px 0 16px 0;">${message}</div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        ${showCancel ? `<button id="ui-cancel" style="padding:10px 14px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;color:#0f172a;cursor:pointer;font-weight:600;">${cancelText}</button>` : ``}
+        <button id="ui-ok" style="padding:10px 14px;border-radius:10px;border:none;background:#059669;color:#fff;cursor:pointer;font-weight:700;">${confirmText}</button>
+      </div>
+    `;
+    overlay.appendChild(panel);
+    requestAnimationFrame(() => {
+        panel.style.transform = 'translateY(0)';
+        panel.style.opacity = '1';
+    });
+    return {overlay, panel};
+}
+function uiAlert(message, title = '提示') {
+    return new Promise(resolve => {
+        const {overlay} = uiBuildModal({title, message, showCancel: false, confirmText: '知道了'});
+        overlay.querySelector('#ui-close').onclick = () => { document.body.removeChild(overlay); resolve(); };
+        overlay.querySelector('#ui-ok').onclick = () => { document.body.removeChild(overlay); resolve(); };
+        document.body.appendChild(overlay);
+    });
+}
+function uiConfirm(message, title = '确认') {
+    return new Promise(resolve => {
+        const {overlay} = uiBuildModal({title, message, showCancel: true, confirmText: '确定', cancelText: '取消'});
+        overlay.querySelector('#ui-close').onclick = () => { document.body.removeChild(overlay); resolve(false); };
+        overlay.querySelector('#ui-cancel').onclick = () => { document.body.removeChild(overlay); resolve(false); };
+        overlay.querySelector('#ui-ok').onclick = () => { document.body.removeChild(overlay); resolve(true); };
+        document.body.appendChild(overlay);
+    });
+}
+function uiToast(message, type = 'info') {
+    const bar = document.createElement('div');
+    const bg = type === 'success' ? '#059669' : (type === 'error' ? '#ef4444' : '#334155');
+    bar.style.cssText = `
+      position: fixed; right: 16px; bottom: 16px; max-width: 360px; z-index: 9999;
+      background: ${bg}; color: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 10px 30px rgba(2,6,23,.2);
+      font-size: 14px; line-height: 1.6;
+      transform: translateY(12px); opacity: 0; transition: all .2s ease-out;
+    `;
+    bar.textContent = message;
+    document.body.appendChild(bar);
+    requestAnimationFrame(() => { bar.style.transform = 'translateY(0)'; bar.style.opacity = '1'; });
+    setTimeout(() => {
+        bar.style.transform = 'translateY(12px)'; bar.style.opacity = '0';
+        setTimeout(() => bar.remove(), 200);
+    }, 1800);
+}
 // 创建房间
 createBtn = document.getElementById('create-room-btn');
 createBtn.onclick = async function() {
     const nick = document.getElementById('create-nickname').value.trim();
-    // 读取下拉或自定义
-    const baseUrlSelect = document.getElementById('create-base-url-select');
-    const apiKeySelect = document.getElementById('create-api-key-select');
-    const modelSelect = document.getElementById('create-model-select');
-    const base_url_custom = document.getElementById('create-base-url').value.trim();
-    const api_key_custom = document.getElementById('create-api-key').value.trim();
-    const model_custom = document.getElementById('create-model').value.trim();
-    const base_url = base_url_custom || (baseUrlSelect && baseUrlSelect.value) || '';
-    const api_key = api_key_custom || (apiKeySelect && apiKeySelect.value) || '';
-    const model = model_custom || (modelSelect && modelSelect.value) || '';
-    if (!nick || !base_url || !api_key || !model) {
-        document.getElementById('create-error').textContent = '请填写完整信息';
+    if (!nick) {
+        document.getElementById('create-error').textContent = '请填写昵称';
         return;
+    }
+    const isDefault = document.querySelector('input[name="api-mode"]:checked').value === 'default';
+    let body;
+    if (isDefault) {
+        const model = document.getElementById('create-model-select').value;
+        if (!model) {
+            document.getElementById('create-error').textContent = '请选择模型';
+            return;
+        }
+        body = JSON.stringify({nickname: nick, use_default: true, model});
+    } else {
+        const base_url = document.getElementById('create-base-url').value.trim();
+        const api_key = document.getElementById('create-api-key').value.trim();
+        const model = document.getElementById('create-model').value.trim();
+        if (!base_url || !api_key || !model) {
+            document.getElementById('create-error').textContent = '请填写完整的 API 配置';
+            return;
+        }
+        body = JSON.stringify({nickname: nick, use_default: false, base_url, api_key, model});
     }
     createBtn.disabled = true;
     document.getElementById('create-error').textContent = '';
@@ -49,7 +152,7 @@ createBtn.onclick = async function() {
         const res = await fetch('/api/create_room', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({nickname: nick, base_url, api_key, model})
+            body
         });
         const data = await res.json();
         if (data.code) {
@@ -105,20 +208,55 @@ function enterChat(roomInfo) {
     window.roomOwner = roomInfo ? roomInfo.owner : '';
     document.getElementById('delete-room-btn').style.display = isOwner ? '' : 'none';
     document.getElementById('user-input').value = '';
-    document.getElementById('chat-box').innerHTML = '';
+    document.getElementById('chat-box').innerHTML = '<div style="text-align:center;color:#94a3b8;margin-top:2rem;">正在连接...</div>';
+    document.getElementById('chat-box-chat').innerHTML = '';
     document.getElementById('story-ops').style.display = isOwner ? '' : 'none';
-    setupUploadBtn(); // 设置上传按钮
+    setupUploadBtn();
     fetchCurrentStory();
-    startPolling();
     saveSession();
-    pollChatMessages();
-    pollOnlineUsers();
-    if (chatPolling) clearInterval(chatPolling);
-    if (onlinePolling) clearInterval(onlinePolling);
-    chatPolling = setInterval(pollChatMessages, 2000);
-    onlinePolling = setInterval(pollOnlineUsers, 5000);
-    startHeartbeat();
-    // 在进入房间时重置弹窗标志
+    // 断开旧 socket
+    if (socket) { socket.disconnect(); socket = null; }
+    // 建立 WebSocket 连接 - Socket.IO 自动处理 ws/wss 升级
+    socket = io({transports: ['websocket', 'polling']});
+    socket.on('connect', function() {
+        socket.emit('join', {code: roomCode, nickname});
+    });
+    socket.on('initial_state', function(data) {
+        renderMessagesIncremental(data.messages || []);
+        if (data.chat_messages) renderChatMessagesIncremental(data.chat_messages);
+    });
+    socket.on('user_message', function(msg) {
+        appendMessage(msg);
+    });
+    socket.on('ai_reply', function(msg) {
+        appendMessage(msg);
+    });
+    socket.on('chat_message', function(msg) {
+        appendChatMessage(msg);
+    });
+    socket.on('online_users_update', function(data) {
+        renderOnlineUsers(data.users || []);
+    });
+    socket.on('pass', function(data) {
+        if (!window._popupPassedFlag) {
+            window._popupPassedFlag = true;
+            showPopup(data.message || '恭喜过关');
+        }
+    });
+    socket.on('story_update', function() {
+        fetchCurrentStory();
+    });
+    socket.on('room_closed', function(data) {
+        uiToast('房间已被关闭', 'error');
+        setTimeout(function() { leaveRoom(); }, 1500);
+    });
+    socket.on('disconnect', function() {
+        uiToast('连接已断开，正在重连...', 'error');
+    });
+    // 心跳
+    window._heartbeatInterval = setInterval(function() {
+        if (socket && socket.connected) socket.emit('heartbeat');
+    }, 30000);
     window._popupPassedFlag = false;
 }
 
@@ -138,58 +276,94 @@ sendBtn.onclick = async function() {
     document.getElementById('user-input').focus();
 };
 
+// 故事还原按钮绑定
+document.getElementById('restore-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeRestoreModal();
+});
+document.getElementById('restore-story-btn').onclick = function() {
+    openRestoreModal();
+};
+document.getElementById('restore-submit-btn').onclick = function() {
+    var content = document.getElementById('restore-input').value.trim();
+    if (!content) { uiToast('请输入还原的故事内容', 'error'); return; }
+    if (!socket || !socket.connected) { uiToast('连接已断开', 'error'); return; }
+    socket.emit('restore_story', {content: content});
+    closeRestoreModal();
+    uiToast('故事还原已提交，请等待 AI 判断...', 'info');
+};
+
 document.getElementById('user-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') {
         sendBtn.click();
     }
 });
 
-// 轮询消息
-function startPolling() {
-    if (polling) clearInterval(polling);
-    pollMessages();
-    polling = setInterval(pollMessages, 2000);
-}
-async function pollMessages() {
-    if (!roomCode) return;
-    try {
-        const res = await fetch('/api/get_messages', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({code: roomCode})
-        });
-        const data = await res.json();
-        if (data.messages) {
-            renderMessages(data.messages);
-        }
-        // 新增：全房间弹窗过关
-        if (data.passed && !window._popupPassedFlag) {
-            window._popupPassedFlag = true;
-            showPopup('恭喜过关');
-        }
-    } catch (e) {}
-}
-function renderMessages(msgs) {
+// WebSocket 消息渲染 - 增量追加
+function renderMessagesIncremental(msgs) {
     const chatBox = document.getElementById('chat-box');
-    const isAtBottom = chatBox.scrollTop + chatBox.clientHeight >= chatBox.scrollHeight - 10;
     chatBox.innerHTML = '';
     for (const msg of msgs) {
-        if (msg.role === 'system') {
-            const div = document.createElement('div');
-            div.style = 'text-align:center;color:#94a3b8;font-size:13px;margin:6px 0;';
-            div.innerHTML = escapeHtml(msg.content);
-            chatBox.appendChild(div);
-            continue;
-        }
-        const div = document.createElement('div');
-        div.className = 'bubble ' + (msg.role === 'user' ? 'msg-user' : 'msg-ai');
-        div.innerHTML = `<span class=\"msg-nickname\">${msg.nickname}</span>: ${escapeHtml(msg.content)}`;
-        chatBox.appendChild(div);
+        appendMessageTo(chatBox, msg);
     }
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function appendMessage(msg) {
+    const chatBox = document.getElementById('chat-box');
+    const isAtBottom = chatBox.scrollTop + chatBox.clientHeight >= chatBox.scrollHeight - 20;
+    appendMessageTo(chatBox, msg);
     if (isAtBottom) {
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 }
+
+function appendMessageTo(container, msg) {
+    if (msg.role === 'system') {
+        const div = document.createElement('div');
+        div.style.cssText = 'text-align:center;color:#94a3b8;font-size:13px;margin:6px 0;';
+        div.innerHTML = escapeHtml(msg.content);
+        container.appendChild(div);
+        return;
+    }
+    const div = document.createElement('div');
+    div.className = 'bubble ' + (msg.role === 'user' ? 'msg-user' : 'msg-ai');
+    div.innerHTML = '<span class="msg-nickname">' + escapeHtml(msg.nickname) + '</span>: ' + escapeHtml(msg.content);
+    container.appendChild(div);
+}
+
+function renderChatMessagesIncremental(msgs) {
+    const box = document.getElementById('chat-box-chat');
+    box.innerHTML = '';
+    for (const msg of msgs) {
+        appendChatMessageTo(box, msg);
+    }
+    box.scrollTop = box.scrollHeight;
+}
+
+function appendChatMessage(msg) {
+    const box = document.getElementById('chat-box-chat');
+    const isAtBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 20;
+    appendChatMessageTo(box, msg);
+    if (isAtBottom) {
+        box.scrollTop = box.scrollHeight;
+    }
+}
+
+function appendChatMessageTo(box, msg) {
+    let content = escapeHtml(msg.content);
+    const users = (currentOnlineUsers || []);
+    users.forEach(function(u) {
+        if (u && content.indexOf('@' + u) !== -1) {
+            content = content.split('@' + u).join('<span style="background:yellow;color:#d97706;padding:1px 4px;border-radius:4px;">@' + u + '</span>');
+        }
+    });
+    const div = document.createElement('div');
+    div.style.cssText = 'margin:2px 0;line-height:1.7;';
+    div.innerHTML = '<span class="msg-nickname" style="color:#3b82f6;">' + escapeHtml(msg.nickname) + '</span>: ' + content;
+    box.appendChild(div);
+}
+
+// 删除旧的 renderMessages 和 renderChatMessages 函数（已被上方增量版本替代）
 function escapeHtml(text) {
     if (!text) return '';
     return text.replace(/[&<>"']/g, function(c) {
@@ -200,21 +374,23 @@ function escapeHtml(text) {
 // 删除房间
 const deleteBtn = document.getElementById('delete-room-btn');
 deleteBtn.onclick = async function() {
-    if (!confirm('确定要删除房间吗？')) return;
+    const ok = await uiConfirm('确定要删除房间吗？', '删除房间');
+    if (!ok) return;
     try {
         await fetch('/api/delete_room', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({code: roomCode, nickname})
         });
-        alert('房间已删除');
+        uiToast('房间已删除', 'success');
         leaveRoom();
     } catch (e) {}
 };
 
 // 退出房间
 function leaveRoom() {
-    if (polling) clearInterval(polling);
+    if (window._heartbeatInterval) { clearInterval(window._heartbeatInterval); window._heartbeatInterval = null; }
+    if (socket) { socket.disconnect(); socket = null; }
     roomCode = '';
     nickname = '';
     isOwner = false;
@@ -231,8 +407,14 @@ function renderStory(story) {
     if (!story) {
         html = '<em>暂无题目，请房主上传海龟汤题目</em>';
     } else {
-        html += `<div style=\"margin-bottom:8px;\">${escapeHtml(story.surface || '')}</div>`;
-        // 删除揭晓答案的显示，只在聊天框中显示
+        html += '<div style="margin-bottom:8px;font-weight:600;">汤面：</div>';
+        html += '<div style="margin-bottom:10px;line-height:1.7;">' + escapeHtml(story.surface || '') + '</div>';
+        if (story.answer && story.answer.length > 0) {
+            html += '<div style="margin-top:12px;padding:10px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;line-height:1.8;font-size:0.95rem;color:#92400e;">';
+            html += '<div style="font-weight:700;margin-bottom:4px;color:#b45309;">已揭晓答案：</div>';
+            html += '<div style="white-space:pre-wrap;">' + escapeHtml(story.answer) + '</div>';
+            html += '</div>';
+        }
     }
     // 房主操作区
     if (isOwner && story) {
@@ -248,7 +430,8 @@ function renderStory(story) {
         const revealBtn = document.getElementById('reveal-answer-btn');
         if (revealBtn) {
             revealBtn.onclick = async function() {
-                if (!confirm('确定要揭晓答案吗？')) return;
+                const ok = await uiConfirm('确定要揭晓答案吗？', '揭晓答案');
+                if (!ok) return;
                 await fetch('/api/reveal_answer', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
@@ -474,7 +657,6 @@ async function setStoryIndex(idx) {
         const data = await res.json();
         if (data.success) {
             await fetchCurrentStory();
-            await pollMessages();
             saveSession();
         } else {
             alert(data.error || '切换失败');
@@ -549,147 +731,71 @@ if (leaveRoomBtn) {
     leaveRoomBtn.onclick = function() { leaveRoom(); };
 }
 
-// 公告侧栏渲染
+// 公告渲染
 (async function renderAnnouncements(){
     try {
         const resp = await fetch('/api/get_announcements');
         const data = await resp.json();
         const content = (data && data.content) ? data.content : '';
-        // 在左侧创建公告栏
-        let left = document.getElementById('announcement-panel');
-        if (!left) {
-            left = document.createElement('div');
-            left.id = 'announcement-panel';
-            left.style.background = '#fff';
-            left.style.border = '3px solid #000';
-            left.style.borderRadius = '0';
-            left.style.padding = '10px 12px 10px 12px';
-            left.style.marginTop = '48px';
-            left.style.maxWidth = '320px';
-            left.style.minWidth = '220px';
-            left.style.marginRight = '16px';
-            left.style.position = 'relative';
-            left.style.fontFamily = '"Courier New", monospace';
-
-            // 添加阴影效果
-            left.innerHTML = '<div style="position:absolute;top:-3px;left:-3px;right:-3px;bottom:-3px;background:#000;z-index:-1;transform:translate(6px,6px);"></div>';
-
-            // 将公告栏插入到主布局最左侧
-            const layout = document.querySelector('.main-layout');
-            if (layout) layout.insertBefore(left, layout.firstChild);
+        if (content) {
+            const banner = document.getElementById('announcement-banner');
+            const text = document.getElementById('announcement-text');
+            if (banner && text) {
+                text.textContent = content;
+                banner.style.display = '';
+            }
         }
-        left.innerHTML = '<div style="position:absolute;top:-3px;left:-3px;right:-3px;bottom:-3px;background:#000;z-index:-1;transform:translate(6px,6px);"></div>' +
-            '<div style="font-size:15px;color:#000;font-weight:bold;margin-bottom:6px;font-family:\'Courier New\',monospace;">公告</div>' +
-            '<div style="white-space:pre-wrap;color:#000;line-height:1.6;font-family:\'Courier New\',monospace;">' + (content ? escapeHtml(content) : '暂无公告') + '</div>';
     } catch (e) {}
-})();
-
-// 初始化创建房间下拉选项
-(function ensureCreateDropdowns(){
-    // 兼容旧模板：如果没有下拉，动态创建
-    const makeGroup = (inputId, selectId, labelText) => {
-        const input = document.getElementById(inputId);
-        if (!input || document.getElementById(selectId)) return; // 已存在或找不到输入框
-        const parent = input.parentElement;
-        // 创建容器
-        const wrapper = document.createElement('div');
-        wrapper.style.display = 'flex';
-        wrapper.style.gap = '8px';
-        // 创建select
-        const select = document.createElement('select');
-        select.id = selectId;
-        select.style.flex = '1';
-        select.style.border = '1.5px solid #cbd5e1';
-        select.style.borderRadius = '8px';
-        select.style.padding = '8px';
-        select.style.background = '#f8fafc';
-        // 插入
-        parent.insertBefore(wrapper, input);
-        wrapper.appendChild(select);
-        wrapper.appendChild(input);
-        input.style.flex = '1';
-    };
-    makeGroup('create-base-url', 'create-base-url-select');
-    makeGroup('create-api-key', 'create-api-key-select');
-    makeGroup('create-model', 'create-model-select');
 })();
 
 (async function initCreateOptions(){
     try {
         const resp = await fetch('/api/get_options');
         const data = await resp.json();
-        const opt = data.options || {models:[], base_urls:[], api_keys:[]};
-        const fill = (id, list)=>{
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.innerHTML = '';
-            const def = document.createElement('option');
-            def.value = '';
-            def.textContent = '请选择';
-            el.appendChild(def);
-            list.forEach(v=>{
+        const opt = data.options || {models:[], base_urls:[], base_urls_masked:[]};
+
+        const modelEl = document.getElementById('create-model-select');
+        if (modelEl) {
+            modelEl.innerHTML = '<option value="">请选择模型</option>';
+            (opt.models || []).forEach(v => {
                 const o = document.createElement('option');
-                o.value = v; o.textContent = v; el.appendChild(o);
+                o.value = v;
+                o.textContent = v;
+                modelEl.appendChild(o);
             });
-            // 默认选中第一个可用项
-            if (list && list.length) el.value = list[0];
-        };
-        fill('create-base-url-select', opt.base_urls || []);
-        fill('create-api-key-select', opt.api_keys || []);
-        fill('create-model-select', opt.models || ['gpt-5-chat-2025-08-07']);
+            if (opt.models && opt.models.length) modelEl.value = opt.models[0];
+        }
+
+        if (!window._optionsStored) {
+            window._optionsStored = {models: opt.models || [], base_urls: opt.base_urls || []};
+        }
     } catch (e) {}
 })();
-
-function renderChatMessages(msgs) {
-    const box = document.getElementById('chat-box-chat');
-    box.innerHTML = '';
-    for (const msg of msgs) {
-        let html = `<span class='msg-nickname' style='color:#3b82f6;'>${escapeHtml(msg.nickname)}</span>: `;
-        let content = escapeHtml(msg.content);
-        // @高亮
-        const users = (currentOnlineUsers || []);
-        users.forEach(u => {
-            if (u && content.includes('@' + u)) {
-                content = content.replaceAll('@' + u, `<span style='background:yellow;color:#d97706;padding:1px 4px;border-radius:4px;'>@${u}</span>`);
-            }
-        });
-        html += content;
-        const div = document.createElement('div');
-        div.style = 'margin:2px 0;line-height:1.7;';
-        div.innerHTML = html;
-        box.appendChild(div);
-    }
-    box.scrollTop = box.scrollHeight;
-}
 
 let currentOnlineUsers = [];
 function renderOnlineUsers(users) {
     currentOnlineUsers = users;
-    // 渲染新用户列表
     const userList = document.getElementById('user-list');
     userList.innerHTML = '';
-    users.forEach(u => {
+    users.forEach(function(u) {
         const div = document.createElement('div');
-        div.style = 'display:flex;align-items:center;padding:6px 16px 6px 12px;margin-bottom:2px;border-radius:8px;transition:background 0.2s;cursor:pointer;';
+        div.style.cssText = 'display:flex;align-items:center;padding:6px 16px 6px 12px;margin-bottom:2px;border-radius:8px;transition:background 0.2s;cursor:pointer;';
         if (u === nickname) {
             div.style.background = '#dbeafe';
         } else {
-            div.onmouseover = () => div.style.background = '#e0e7ff';
-            div.onmouseout = () => div.style.background = '';
+            div.onmouseover = function() { div.style.background = '#e0e7ff'; };
+            div.onmouseout = function() { div.style.background = ''; };
         }
-        // 头像（首字母圆形）
         const avatar = document.createElement('div');
         avatar.textContent = u[0].toUpperCase();
-        avatar.style = 'width:32px;height:32px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px;margin-right:10px;box-shadow:0 2px 8px 0 rgba(59,130,246,0.08);';
+        avatar.style.cssText = 'width:32px;height:32px;background:#3b82f6;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px;margin-right:10px;box-shadow:0 2px 8px 0 rgba(59,130,246,0.08);';
         div.appendChild(avatar);
-        // 昵称
         const nameSpan = document.createElement('span');
         nameSpan.textContent = u;
-        nameSpan.style = 'font-size:15px;font-weight:500;color:#334155;';
+        nameSpan.style.cssText = 'font-size:15px;font-weight:500;color:#334155;';
         div.appendChild(nameSpan);
-        // 标签
         const tag = document.createElement('span');
-        tag.style = 'margin-left:10px;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:bold;';
+        tag.style.cssText = 'margin-left:10px;padding:2px 8px;border-radius:8px;font-size:12px;font-weight:bold;';
         if (u === window.roomOwner) {
             tag.textContent = '房主';
             tag.style.background = '#fef3c7';
@@ -704,49 +810,17 @@ function renderOnlineUsers(users) {
     });
 }
 
-async function pollChatMessages() {
-    if (!roomCode) return;
-    try {
-        const res = await fetch('/api/get_chat_messages', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({code: roomCode})
-        });
-        const data = await res.json();
-        if (data.messages) renderChatMessages(data.messages);
-    } catch (e) {}
-}
-
-async function pollOnlineUsers() {
-    if (!roomCode) return;
-    try {
-        const res = await fetch('/api/get_online_users', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({code: roomCode})
-        });
-        const data = await res.json();
-        if (data.users) renderOnlineUsers(data.users);
-    } catch (e) {}
-}
-
-// 发送无AI群聊消息
+// 发送无AI群聊消息 - 通过 WebSocket
 const chatSendBtn = document.getElementById('chat-send-btn');
 chatSendBtn.onclick = async function() {
     const input = document.getElementById('chat-input');
     const content = input.value.trim();
     if (!content) return;
+    if (!socket || !socket.connected) { uiToast('连接已断开', 'error'); return; }
     chatSendBtn.disabled = true;
     input.disabled = true;
-    try {
-        await fetch('/api/send_chat_message', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({code: roomCode, nickname, content})
-        });
-        input.value = '';
-        await pollChatMessages();
-    } catch (e) {}
+    socket.emit('send_chat_message', {content: content});
+    input.value = '';
     chatSendBtn.disabled = false;
     input.disabled = false;
     input.focus();
@@ -767,18 +841,6 @@ if (userInput) {
         this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
 }
-
-// 心跳机制
-function startHeartbeat() {
-    setInterval(async () => {
-        if (!roomCode || !nickname) return;
-        await fetch('/api/heartbeat', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({code: roomCode, nickname})
-        });
-    }, 30000);
-} 
 
 // 弹窗函数
 function showPopup(msg) {
@@ -825,72 +887,32 @@ function showPopup(msg) {
     document.body.appendChild(popup);
 }
 
-// 发送AI消息时按钮转圈圈
+// 发送AI消息 - 通过 WebSocket
 let sendBtnOriginal = sendBtn.innerHTML;
 async function sendAIMessage(content) {
     sendBtn.disabled = true;
     sendBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:22px;height:22px;border:3px solid #3b82f6;border-top:3px solid #fff;border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;"></span>';
-    let msg_id = null;
-    try {
-        const res = await fetch('/api/send_message', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({code: roomCode, nickname, content})
-        });
-        const data = await res.json();
-        if (data.msg_id) {
-            msg_id = data.msg_id;
-        } else if (data.reply) {
-            // 兼容老接口
-            await pollMessages();
-            if (data.popup === '恭喜过关') showPopup('恭喜过关');
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = sendBtnOriginal;
-            return;
-        } else {
-            alert(data.error || 'AI消息发送失败');
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = sendBtnOriginal;
-            return;
-        }
-    } catch (e) {
-        alert('AI消息发送失败');
+    socket.emit('send_ai_message', {content: content});
+    // 等待 AI 回复后恢复按钮（通过 ai_reply 事件触发）
+    var onReply = function() {
         sendBtn.disabled = false;
         sendBtn.innerHTML = sendBtnOriginal;
-        return;
-    }
-    // 轮询AI回复
-    let start = Date.now();
-    let gotReply = false;
-    while (!gotReply && Date.now() - start < 30000) {
-        await new Promise(r => setTimeout(r, 800));
-        try {
-            const res2 = await fetch('/api/get_ai_reply', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({msg_id})
-            });
-            const data2 = await res2.json();
-            if (data2.status === 'pending') continue;
-            if (data2.reply) {
-                await pollMessages();
-                if (data2.popup === '恭喜过关') showPopup('恭喜过关');
-                gotReply = true;
-                break;
-            } else if (data2.error) {
-                alert(data2.error);
-                break;
-            }
-        } catch (e) {
-            alert('AI回复获取失败');
-            break;
-        }
-    }
-    if (!gotReply) {
-        alert('AI回复超时，请重试');
-    }
-    sendBtn.disabled = false;
-    sendBtn.innerHTML = sendBtnOriginal;
+        socket.off('ai_reply', onReply);
+        socket.off('error', onError);
+    };
+    var onError = function() {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = sendBtnOriginal;
+        socket.off('ai_reply', onReply);
+        socket.off('error', onError);
+    };
+    // 设置超时
+    var timeout = setTimeout(function() {
+        onReply();
+        uiToast('AI 响应超时，请重试', 'error');
+    }, 35000);
+    socket.once('ai_reply', function() { clearTimeout(timeout); onReply(); });
+    socket.once('error', function() { clearTimeout(timeout); onError(); });
 }
 // 加入转圈动画样式
 const style = document.createElement('style');
