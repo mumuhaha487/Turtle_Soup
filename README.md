@@ -215,3 +215,7 @@ haigui/
 ---
 
 **海龟汤 AI** — 与 AI 博弈，还原真相 🐢
+
+## 社区支持
+
+学 AI , 上 L 站：[LinuxDO](https://linux.do)
