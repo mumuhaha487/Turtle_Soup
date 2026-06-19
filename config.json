@@ -10,7 +10,7 @@
       "deepseek-v4-flash"
     ],
     "base_urls": [
-      "https://api.lyhnb.com/v1"
+      "https://api.example.com/v1"
     ],
     "api_keys": [
       ""
