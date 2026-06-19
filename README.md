@@ -1,4 +1,5 @@
 # 海龟汤 AI — 沉浸式推理聊天室
+[demo网站(感谢提供汤的人辛勤付出)](https://turtle.vmss.cn/)
 
 基于 Flask + Socket.IO 的在线海龟汤推理游戏，支持 AI 主持、多人实时互动与故事广场。
 
